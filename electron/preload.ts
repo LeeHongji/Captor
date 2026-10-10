@@ -1,5 +1,35 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { TeleprompterAPI } from "../src/types/teleprompter";
 import type { RecordingSessionData } from "./ipc/types";
+
+const prompterSubscription = <T>(channel: string, listener: (value: T) => void) => {
+	const receive = (_event: Electron.IpcRendererEvent, value: T) => listener(value);
+	ipcRenderer.on(channel, receive);
+	return () => ipcRenderer.removeListener(channel, receive);
+};
+contextBridge.exposeInMainWorld("teleprompterAPI", {
+	getState: () => ipcRenderer.invoke("prompter:get"),
+	saveDraft: (draft) => ipcRenderer.invoke("prompter:save", draft),
+	draftDirty: (dirty) => ipcRenderer.send("prompter:dirty", dirty),
+	flushDraft: () => ipcRenderer.invoke("prompter:flush"),
+	show: () => ipcRenderer.invoke("prompter:show"),
+	hide: () => ipcRenderer.invoke("prompter:hide"),
+	arm: (enabled) => ipcRenderer.invoke("prompter:arm", enabled),
+	rehearse: () => ipcRenderer.invoke("prompter:rehearse"),
+	stopRehearsal: () => ipcRenderer.invoke("prompter:stop-rehearsal"),
+	setCursor: (offset) => ipcRenderer.invoke("prompter:cursor", offset),
+	recordingPhase: (phase) => ipcRenderer.invoke("prompter:phase", phase),
+	modelStatus: () => ipcRenderer.invoke("prompter:model-status"),
+	downloadModel: () => ipcRenderer.invoke("prompter:download-model"),
+	startRecognition: () => ipcRenderer.invoke("prompter:recognition-start"),
+	stopRecognition: (session) => ipcRenderer.invoke("prompter:recognition-stop", session),
+	recognitionFailed: (session, error) =>
+		ipcRenderer.invoke("prompter:recognition-failed", session, error),
+	pushAudio: (session, samples, sampleRate) =>
+		ipcRenderer.send("prompter:audio", session, samples, sampleRate),
+	onState: (listener) => prompterSubscription("prompter:state", listener),
+	onModel: (listener) => prompterSubscription("prompter:model", listener),
+} satisfies TeleprompterAPI);
 
 type NativeVideoExportWriteResult = { success: boolean; error?: string };
 type NativeVideoAudioMuxMetrics = {

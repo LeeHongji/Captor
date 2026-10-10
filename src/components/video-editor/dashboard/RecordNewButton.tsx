@@ -17,7 +17,12 @@ export function RecordNewButton({
 		<Button
 			variant="default"
 			disabled={busy}
-			onClick={() => void run(() => window.electronAPI.showRecordingHud())}
+			onClick={() =>
+				void run(async () => {
+					await window.teleprompterAPI?.arm(false);
+					await window.electronAPI.showRecordingHud();
+				})
+			}
 			className={cn("h-10 shrink-0 gap-2 text-[13px]", className)}
 		>
 			<Plus className="size-4" />

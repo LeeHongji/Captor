@@ -1,3 +1,4 @@
+import { hasUnsavedRecordingDraft, clearUnsavedRecordingDraft } from "./teleprompter/controller";
 import { createSaveBeforeCloseController } from "./saveBeforeClose";
 import { clearRecordingTrashUndo } from "./ipc/recording/library";
 import fs from "node:fs/promises";
@@ -799,10 +800,12 @@ function createEditorWindowWrapper() {
 		}
 	}
 	const editorWindow = createEditorWindow();
+	const editorWebContentsId = editorWindow.webContents.id;
 	mainWindow = editorWindow;
 	editorHasUnsavedChanges = false;
 
 	editorWindow.on("closed", () => {
+		clearUnsavedRecordingDraft(editorWebContentsId);
 		if (mainWindow === editorWindow) {
 			mainWindow = null;
 		}
@@ -845,7 +848,10 @@ function createEditorWindowWrapper() {
 	});
 	editorWindow.once("closed", closeSave.dispose);
 	editorWindow.on("close", (event) => {
-		if (isForceClosing || !editorHasUnsavedChanges) {
+		if (
+			isForceClosing ||
+			(!editorHasUnsavedChanges && !hasUnsavedRecordingDraft(editorWebContentsId))
+		) {
 			if (process.platform === "win32" && !isForceClosing && !isAppQuitting) {
 				event.preventDefault();
 				closeEditorWindowToHud(editorWindow);

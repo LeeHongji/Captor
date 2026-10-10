@@ -20,6 +20,8 @@ struct CaptureConfig: Codable {
 	let microphoneLabel: String?
 	let microphoneOutputPath: String?
 	let excludedProcessIds: [Int32]?
+	let includedWindowIds: [UInt32]?
+	let excludedWindowIds: [UInt32]?
 }
 
 let targetCaptureFPS = 60
@@ -35,6 +37,15 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		let interactiveStopParticipated: Bool
 	}
 
+	private func makeContentFilter(display: SCDisplay, content: SCShareableContent) -> SCContentFilter {
+		let applications = content.applications.filter { excludedProcessIds.contains($0.processID) }
+		if !applications.isEmpty {
+			let exceptions = content.windows.filter { includedWindowIds.contains($0.windowID) }
+			return SCContentFilter(display: display, excludingApplications: applications, exceptingWindows: exceptions)
+		}
+		return SCContentFilter(display: display, excludingWindows: content.windows.filter { excludedWindowIds.contains($0.windowID) })
+	}
+
 	private let queue = DispatchQueue(label: "captor.screencapturekit.video")
 	private var assetWriter: AVAssetWriter?
 	private var videoInput: AVAssetWriterInput?
@@ -42,6 +53,8 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 	private var windowCropRect: CGRect?
 	private var windowCropDisplayId: CGDirectDisplayID?
 	private var excludedProcessIds = Set<Int32>()
+	private var includedWindowIds = Set<UInt32>()
+	private var excludedWindowIds = Set<UInt32>()
 	private var lastCroppedPixelBuffer: CVPixelBuffer?
 	private let imageContext = CIContext(options: [.cacheIntermediates: false])
 	private var systemAudioWriter: AVAssetWriter?
@@ -126,9 +139,8 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 		let outputWidth: Int
 		let outputHeight: Int
 		excludedProcessIds = Set(config.excludedProcessIds ?? [])
-		let excludedApplications = availableContent.applications.filter {
-			excludedProcessIds.contains($0.processID)
-		}
+		includedWindowIds = Set(config.includedWindowIds ?? [])
+		excludedWindowIds = Set(config.excludedWindowIds ?? [])
 
 		if let windowId = config.windowId {
 			trackedWindowId = windowId
@@ -153,11 +165,7 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 			}
 			let scaleFactor = ScreenCaptureRecorder.scaleFactor(for: display.displayID)
 			let captureRect = visibleFrame.intersection(display.frame)
-			filter = SCContentFilter(
-				display: display,
-				excludingApplications: excludedApplications,
-				exceptingWindows: []
-			)
+			filter = makeContentFilter(display: display, content: availableContent)
 			windowCropRect = CGRect(
 				x: (captureRect.minX - display.frame.minX) / display.frame.width,
 				y: (captureRect.minY - display.frame.minY) / display.frame.height,
@@ -179,11 +187,7 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 				throw NSError(domain: "CaptorCapture", code: 4, userInfo: [NSLocalizedDescriptionKey: "Display not found"])
 			}
 
-			filter = SCContentFilter(
-				display: display,
-				excludingApplications: excludedApplications,
-				exceptingWindows: []
-			)
+			filter = makeContentFilter(display: display, content: availableContent)
 			let displayBounds = CGDisplayBounds(display.displayID)
 			let scaleFactor = ScreenCaptureRecorder.scaleFactor(for: display.displayID)
 			outputWidth = max(2, Int(displayBounds.width) * scaleFactor)
@@ -908,14 +912,7 @@ final class ScreenCaptureRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
 				)
 
 				if self.windowCropDisplayId != display.displayID, let activeStream = self.stream {
-					let excludedApplications = availableContent.applications.filter {
-						self.excludedProcessIds.contains($0.processID)
-					}
-					let filter = SCContentFilter(
-						display: display,
-						excludingApplications: excludedApplications,
-						exceptingWindows: []
-					)
+					let filter = self.makeContentFilter(display: display, content: availableContent)
 					do {
 						try await activeStream.updateContentFilter(filter)
 					} catch {

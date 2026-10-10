@@ -10,6 +10,7 @@ import type { DashboardProps } from "./types";
 
 import type { DashboardModel } from "./useDashboardModel";
 import { FOLDER_COLORS } from "./useProjectFolders";
+import { useScopedT } from "@/contexts/I18nContext";
 
 export function DashboardSidebar({
 	busy,
@@ -33,6 +34,7 @@ export function DashboardSidebar({
 	| "update"
 	| "navClass"
 >) {
+	const t = useScopedT("launch");
 	return (
 		<>
 			<aside
@@ -50,7 +52,15 @@ export function DashboardSidebar({
 						<p className="text-[10px] text-muted-foreground">Forked from Recordly</p>
 					</div>
 				</div>
-				<RecordNewButton busy={busy} run={run} className="mb-5 w-full" />
+				<RecordNewButton busy={busy} run={run} className="mb-2 w-full" />
+				<Button
+					variant="secondary"
+					disabled={busy}
+					className="mb-5 h-9 w-full text-xs"
+					onClick={() => setSection("preparation")}
+				>
+					{t("prompter.prepare", "Prepare narration")}
+				</Button>
 				<nav className="space-y-1">
 					<Button
 						variant="ghost"

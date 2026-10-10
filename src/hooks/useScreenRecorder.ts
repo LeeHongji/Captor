@@ -1,3 +1,4 @@
+import { acquireRecordingMicrophone } from "../lib/recordingMicrophone";
 import { fixWebmDuration } from "@fix-webm-duration/fix";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/toast";
@@ -128,8 +129,10 @@ type DesktopCaptureMediaDevices = {
 
 type UseScreenRecorderReturn = {
 	recording: boolean;
+	starting: boolean;
 	paused: boolean;
 	finalizing: boolean;
+	acquireListeningMicrophone: () => Promise<{ stream: MediaStream; release: () => void }>;
 	countdownActive: boolean;
 	toggleRecording: () => void;
 	pauseRecording: () => void;
@@ -433,6 +436,33 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	);
 	const requestedBrowserMicrophoneProfile = useRef<string | null>(null);
 	const hideEditorOverlayCursorByDefault = useRef(false);
+	const microphoneRelease = useRef<(() => void) | null>(null);
+	const fallbackMicrophoneRelease = useRef<(() => void) | null>(null);
+	const captureSharedMicrophone = useRef(false);
+	const acquireListeningMicrophone = useCallback(
+		() =>
+			acquireRecordingMicrophone(
+				createProcessedMicrophoneConstraints(
+					microphoneDeviceId,
+					browserMicrophoneProfile.current,
+				),
+			),
+		[microphoneDeviceId],
+	);
+	useEffect(() => {
+		const phase = finalizing
+			? "finalizing"
+			: recording
+				? paused
+					? "paused"
+					: "recording"
+				: starting
+					? "preparing"
+					: "idle";
+		void window.teleprompterAPI
+			?.recordingPhase(phase)
+			.catch((error) => console.warn("Prompter phase update failed:", error));
+	}, [finalizing, recording, paused, starting]);
 
 	const notifyRecordingFinalizationFailure = useCallback(async (message: string) => {
 		setFinalizing(false);
@@ -626,6 +656,8 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			microphoneStream.current.getTracks().forEach((track) => track.stop());
 			microphoneStream.current = null;
 		}
+		microphoneRelease.current?.();
+		microphoneRelease.current = null;
 
 		if (webcamStream.current) {
 			webcamStream.current.getTracks().forEach((track) => track.stop());
@@ -813,6 +845,8 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 						: null;
 				micFallbackChunks.current = [];
 				recorder.stream.getTracks().forEach((track) => track.stop());
+				fallbackMicrophoneRelease.current?.();
+				fallbackMicrophoneRelease.current = null;
 				micFallbackRecorder.current = null;
 				micFallbackRecorderStartedAt.current = null;
 				resolve(blob);
@@ -1681,11 +1715,28 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		setStarting(true);
 
 		try {
+			const prompterState = await window.teleprompterAPI?.getState();
+			captureSharedMicrophone.current = !!(
+				prompterState?.armed && prompterState.draft.voiceFollow
+			);
 			const preparedStart = await prepareRecordingStart();
 			if (!preparedStart || startWasCancelled()) {
 				cleanupCapturedMedia();
 				await stopWebcamRecorder();
 				return;
+			}
+			if (captureSharedMicrophone.current) {
+				await window.teleprompterAPI?.recordingPhase("preparing");
+				try {
+					await window.teleprompterAPI?.startRecognition();
+				} catch (error) {
+					await window.teleprompterAPI?.recognitionFailed(null, getErrorMessage(error));
+				}
+				if (startWasCancelled()) {
+					cleanupCapturedMedia();
+					await stopWebcamRecorder();
+					return;
+				}
 			}
 
 			const { selectedSource, useNativeMacScreenCapture, useNativeWindowsCapture, micLabel } =
@@ -1715,7 +1766,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					selectedSource,
 					{
 						capturesSystemAudio: systemAudioEnabled,
-						capturesMicrophone: microphoneEnabled,
+						capturesMicrophone: microphoneEnabled && !captureSharedMicrophone.current,
 						microphoneDeviceId,
 						microphoneLabel: micLabel,
 					},
@@ -1822,7 +1873,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 					// When native mic capture is unavailable or explicitly bypassed,
 					// record mic via browser getUserMedia as a sidecar file.
-					if (nativeResult.microphoneFallbackRequired && microphoneEnabled) {
+					if (
+						(nativeResult.microphoneFallbackRequired ||
+							captureSharedMicrophone.current) &&
+						microphoneEnabled
+					) {
 						void logNativeCaptureDiagnostics("start-browser-microphone-fallback");
 						console.info("Using browser microphone processing for this recording.");
 						try {
@@ -1831,8 +1886,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 								browserMicrophoneProfile.current,
 							);
 							micFallbackRequestedConstraints.current = microphoneConstraints;
-							const micStream =
-								await navigator.mediaDevices.getUserMedia(microphoneConstraints);
+							const lease = await acquireRecordingMicrophone(microphoneConstraints);
+							fallbackMicrophoneRelease.current = lease.release;
+							const micStream = lease.stream;
 							micFallbackTrackSettings.current =
 								createMicrophoneTrackSettingsSnapshot(micStream);
 							micFallbackAudioInputDevices.current =
@@ -1865,6 +1921,8 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 							recorder.start(RECORDER_TIMESLICE_MS);
 							micFallbackRecorder.current = recorder;
 						} catch (micError) {
+							fallbackMicrophoneRelease.current?.();
+							fallbackMicrophoneRelease.current = null;
 							micFallbackStartDelayMs.current = null;
 							micFallbackTrackSettings.current = null;
 							micFallbackRequestedConstraints.current = null;
@@ -2035,12 +2093,9 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 				if (microphoneEnabled) {
 					try {
-						microphoneStream.current = await navigator.mediaDevices.getUserMedia(
-							createProcessedMicrophoneConstraints(
-								microphoneDeviceId,
-								browserMicrophoneProfile.current,
-							),
-						);
+						const lease = await acquireListeningMicrophone();
+						microphoneRelease.current = lease.release;
+						microphoneStream.current = lease.stream;
 					} catch (audioError) {
 						console.warn("Failed to get microphone access:", audioError);
 						alert(
@@ -2436,8 +2491,10 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 	return {
 		recording,
+		starting,
 		paused,
 		finalizing,
+		acquireListeningMicrophone,
 		countdownActive,
 		toggleRecording,
 		pauseRecording,

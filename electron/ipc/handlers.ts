@@ -1,4 +1,5 @@
 import { BrowserWindow } from "electron";
+import { registerTeleprompterHandlers } from "../teleprompter/controller";
 import { registerAnnouncementHandlers } from "./register/announcements";
 import { registerAssetHandlers } from "./register/assets";
 import { registerCaptionHandlers } from "./register/captions";
@@ -73,4 +74,5 @@ export function registerIpcHandlers(
 	registerCaptionHandlers();
 	registerProjectHandlers();
 	registerSettingsHandlers();
+	registerTeleprompterHandlers();
 }

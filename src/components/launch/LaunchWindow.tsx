@@ -11,6 +11,7 @@ import {
 	VideoCameraIcon,
 	VideoCameraSlashIcon,
 	XIcon,
+	File,
 } from "@/components/ui/icons";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
@@ -39,6 +40,8 @@ import { MicPopover } from "./popovers/MicPopover";
 import { SourcePopover } from "./popovers/SourcePopover";
 import { WebcamPopover } from "./popovers/WebcamPopover";
 import { RecordingControls } from "./RecordingControls";
+import { useLocalVoiceFollow } from "../teleprompter/useLocalVoiceFollow";
+import { usePrompterState } from "../teleprompter/usePrompterState";
 
 export function LaunchWindow() {
 	return (
@@ -50,10 +53,12 @@ export function LaunchWindow() {
 
 function LaunchWindowContent() {
 	const t = useScopedT("launch");
-	const { openId, requestOpen } = useLaunchPopoverCoordinator();
+	const prompter = usePrompterState();
+	const { openId, requestOpen, requestClose } = useLaunchPopoverCoordinator();
 
 	const {
 		recording,
+		starting,
 		paused,
 		finalizing,
 		countdownActive,
@@ -74,7 +79,12 @@ function LaunchWindowContent() {
 		countdownDelay,
 		setCountdownDelay,
 		preparePermissions,
+		acquireListeningMicrophone,
 	} = useScreenRecorder();
+	useLocalVoiceFollow(prompter, acquireListeningMicrophone);
+	useEffect(() => {
+		if ((starting || countdownActive) && openId) requestClose(openId);
+	}, [starting, countdownActive, openId, requestClose]);
 
 	const { elapsed, formatTime } = useRecordingTimer(recording, paused);
 	const hudContentRef = useRef<HTMLDivElement>(null);
@@ -206,6 +216,7 @@ function LaunchWindowContent() {
 	const recordingControls = (
 		<RecordingControls
 			onHome={openHome}
+			onShowPrompter={prompter.armed ? () => void window.teleprompterAPI?.show() : undefined}
 			paused={paused}
 			microphoneEnabled={microphoneEnabled}
 			elapsed={elapsed}
@@ -219,6 +230,41 @@ function LaunchWindowContent() {
 
 	const idleControls = (
 		<>
+			<Button
+				variant="ghost"
+				size="icon"
+				aria-label={t("prompter.prepare", "Prepare narration")}
+				title={t("prompter.prepare", "Prepare narration")}
+				disabled={countdownActive}
+				onClick={() => {
+					localStorage.setItem("captor.open-preparation", String(Date.now()));
+					localStorage.setItem("captor.open-dashboard", String(Date.now()));
+					void window.electronAPI.showProjectDashboard();
+				}}
+			>
+				<File weight={prompter.armed ? "fill" : "regular"} className="size-5" />
+			</Button>
+			{prompter.armed && prompter.phase !== "rehearsal" && (
+				<Button
+					variant="ghost"
+					size="icon"
+					disabled={countdownActive}
+					aria-label={t("prompter.skip", "Skip preparation and record")}
+					title={t("prompter.skip", "Skip preparation and record")}
+					onClick={() => void window.teleprompterAPI?.arm(false)}
+				>
+					<XIcon className="size-4" />
+				</Button>
+			)}
+			{prompter.phase === "rehearsal" && (
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={() => void window.teleprompterAPI?.stopRehearsal()}
+				>
+					{t("prompter.stopRehearsal", "Stop rehearsal")}
+				</Button>
+			)}
 			{platform !== "linux" && (
 				<>
 					<SourcePopover
@@ -255,7 +301,7 @@ function LaunchWindowContent() {
 			)}
 
 			<MicPopover
-				disabled={recording}
+				disabled={recording || starting || countdownActive}
 				systemAudioEnabled={systemAudioEnabled}
 				onToggleSystemAudio={() => setSystemAudioEnabled(!systemAudioEnabled)}
 				microphoneEnabled={microphoneEnabled}

@@ -13,6 +13,8 @@ import {
 	systemPreferences,
 } from "electron";
 import { getHudCaptureExcludedProcessIds } from "../../../src/lib/hudCaptureProtection";
+import { getPrompterCaptureExclusions } from "../../../src/lib/prompterCapture";
+import { getPrompterCaptureWindow } from "../../teleprompter/window";
 import { showCursor } from "../../cursorHider";
 import { getHudOverlayCaptureProtectionEnabled, beginHudCaptureProtection } from "../../windows";
 import { ALLOW_CAPTOR_WINDOW_CAPTURE } from "../constants";
@@ -743,6 +745,7 @@ export function registerRecordingHandlers(
 				if (excludedProcessIds.length > 0) {
 					config.excludedProcessIds = excludedProcessIds;
 				}
+				Object.assign(config, getPrompterCaptureExclusions(getHudOverlayCaptureProtectionEnabled(), getPrompterCaptureWindow()));
 
 				if (options?.microphoneDeviceId) {
 					config.microphoneDeviceId = options.microphoneDeviceId;

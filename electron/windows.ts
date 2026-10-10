@@ -1,4 +1,5 @@
 import { isHudInEditorMode } from "./hudEditorMode";
+import { protectPrompterCapture } from "./teleprompter/window";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -23,8 +24,7 @@ const nodeRequire = createRequire(import.meta.url);
 const APP_ROOT = path.join(electronWindowsDir, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
 const RENDERER_DIST = path.join(APP_ROOT, "dist");
-const WINDOW_ICON_FILENAME =
-	process.platform === "darwin" ? "captormac-512.png" : "captor-512.png";
+const WINDOW_ICON_FILENAME = process.platform === "darwin" ? "captormac-512.png" : "captor-512.png";
 const WINDOW_ICON_PATH = path.join(
 	process.env.VITE_PUBLIC || RENDERER_DIST,
 	"app-icons",
@@ -169,10 +169,12 @@ function applyHudOverlayCaptureProtectionToWindow(hud: BrowserWindow, enabled: b
 
 export function beginHudCaptureProtection(): void {
 	hudCaptureStarting = true;
+	protectPrompterCapture(true);
 	reassertHudOverlayCaptureProtection();
 }
 ipcMain.handle("finish-recording-startup", () => {
 	hudCaptureStarting = false;
+	protectPrompterCapture(hudOverlayRecordingActive);
 	reassertHudOverlayCaptureProtection();
 });
 
@@ -721,6 +723,7 @@ export function reassertHudOverlayMousePassthrough(): void {
 }
 
 export function setHudOverlayRecordingActive(recording: boolean): void {
+	protectPrompterCapture(recording);
 	hudCaptureStarting = false;
 	hudOverlayRecordingActive = Boolean(recording);
 	notifyEditorMode();

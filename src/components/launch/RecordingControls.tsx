@@ -6,12 +6,14 @@ import {
 	PauseIcon,
 	PlayIcon,
 	XIcon,
+	File,
 } from "@/components/ui/icons";
 import { useScopedT } from "@/contexts/I18nContext";
 import { Button, Separator, Tooltip } from "@heroui/react";
 import styles from "./LaunchWindow.module.css";
 
 interface RecordingControlsProps {
+	onShowPrompter?: () => void;
 	onHome: () => void;
 	paused: boolean;
 	microphoneEnabled: boolean;
@@ -23,6 +25,7 @@ interface RecordingControlsProps {
 	formatTime: (seconds: number) => string;
 }
 export function RecordingControls({
+	onShowPrompter,
 	onHome,
 	paused,
 	microphoneEnabled,
@@ -37,6 +40,17 @@ export function RecordingControls({
 	const actionClass = `size-9 min-w-9 rounded-full ${styles.electronNoDrag}`;
 	return (
 		<div role="group" aria-label="Recording controls" className="flex items-center gap-2">
+			{onShowPrompter && (
+				<Button
+					isIconOnly
+					variant="ghost"
+					className={actionClass}
+					aria-label={t("prompter.show", "Show teleprompter")}
+					onPress={onShowPrompter}
+				>
+					<File className="size-4" />
+				</Button>
+			)}
 			<Button
 				isIconOnly
 				variant="ghost"

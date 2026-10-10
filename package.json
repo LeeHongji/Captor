@@ -56,6 +56,7 @@
 		"electron-updater": "^6.8.3",
 		"ffmpeg-static": "^5.3.0",
 		"ffprobe-static": "^3.1.0",
+		"sherpa-onnx-node": "1.13.8",
 		"uiohook-napi": "^1.5.4"
 	},
 	"devDependencies": {

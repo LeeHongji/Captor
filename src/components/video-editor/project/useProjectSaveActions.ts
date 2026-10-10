@@ -1,3 +1,4 @@
+import { flushRecordingDraft } from "@/lib/recordingDraftFlush";
 import { moveProjectFolderReferences } from "../dashboard/useProjectFolders";
 import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { toast } from "@/components/ui/toast";
@@ -179,8 +180,12 @@ export function useProjectSaveActions({
 		window.electronAPI.setHasUnsavedChanges(hasUnsavedChanges);
 	}, [hasUnsavedChanges]);
 	useEffect(
-		() => window.electronAPI.onRequestSaveBeforeClose(() => saveProject(false)),
-		[saveProject],
+		() =>
+			window.electronAPI.onRequestSaveBeforeClose(async () => {
+				if (!(await flushRecordingDraft())) return false;
+				return !hasUnsavedChanges || saveProject(false);
+			}),
+		[saveProject, hasUnsavedChanges],
 	);
 	useEffect(() => {
 		if (project.loading || !currentSourcePath || !hasUnsavedChanges) {
