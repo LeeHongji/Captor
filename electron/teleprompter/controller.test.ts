@@ -12,6 +12,11 @@ const mocks = vi.hoisted(() => ({
 	workerKills: 0,
 	workerStarts: 0,
 	downloads: 0,
+	packagedRendererBase: null as string | null,
+	senderUrl: "file:///repo/dist/index.html?windowType=hud-overlay",
+}));
+vi.mock("../rendererServer", () => ({
+	getPackagedRendererBaseUrl: () => mocks.packagedRendererBase,
 }));
 vi.mock("electron", () => ({
 	app: {
@@ -76,7 +81,7 @@ async function call(name: string, ...args: unknown[]) {
 		sender: {
 			id: 1,
 			mainFrame: frame,
-			getURL: () => "file:///repo/dist/index.html?windowType=hud-overlay",
+			getURL: () => mocks.senderUrl,
 		},
 		senderFrame: frame,
 	};
@@ -91,6 +96,8 @@ beforeEach(async () => {
 	mocks.workerKills = 0;
 	mocks.workerStarts = 0;
 	mocks.downloads = 0;
+	mocks.packagedRendererBase = null;
+	mocks.senderUrl = "file:///repo/dist/index.html?windowType=hud-overlay";
 	mocks.directory = await fs.mkdtemp(path.join(os.tmpdir(), "captor-prompter-controller-"));
 	const { registerTeleprompterHandlers } = await import("./controller");
 	registerTeleprompterHandlers();
@@ -99,6 +106,52 @@ beforeEach(async () => {
 afterEach(async () => {
 	for (const callback of mocks.callbacks.get("before-quit") ?? []) callback();
 	await fs.rm(mocks.directory, { recursive: true, force: true });
+});
+
+describe("packaged recording entry trust", () => {
+	it.each([false, true])("arms the packaged editor with script=%s", async (withScript) => {
+		mocks.packagedRendererBase = "http://127.0.0.1:49152";
+		mocks.senderUrl = `${mocks.packagedRendererBase}/?windowType=editor`;
+		await call("arm", withScript);
+		const state = (await call("get")) as { armed: boolean; phase: string };
+		expect(state.armed).toBe(withScript);
+		expect(state.phase).toBe(withScript ? "ready" : "idle");
+		expect(mocks.window !== null).toBe(withScript);
+	});
+	it.each([
+		"http://127.0.0.1:49153/?windowType=editor",
+		"http://localhost:49152/?windowType=editor",
+		"http://127.0.0.1:49152/other?windowType=editor",
+		"http://user@127.0.0.1:49152/?windowType=editor",
+		"http://127.0.0.1:49152/?windowType=editor&windowType=hud-overlay",
+		"http://127.0.0.1:49152/?windowType=teleprompter",
+	])("rejects an unauthorized arm request from %s", async (url) => {
+		mocks.packagedRendererBase = "http://127.0.0.1:49152";
+		mocks.senderUrl = url;
+		await expect(call("arm", true)).rejects.toThrow("Untrusted prompter request.");
+		expect(mocks.window).toBeNull();
+	});
+	it("does not trust a loopback URL before the packaged server exists", async () => {
+		mocks.senderUrl = "http://127.0.0.1:49152/?windowType=editor";
+		await expect(call("arm", false)).rejects.toThrow("Untrusted prompter request.");
+	});
+	it("rejects subframes even when the packaged document URL matches", async () => {
+		mocks.packagedRendererBase = "http://127.0.0.1:49152";
+		const { isTrustedPrompterSender } = await import("./controller");
+		const mainFrame = {};
+		expect(
+			isTrustedPrompterSender(
+				{
+					sender: {
+						mainFrame,
+						getURL: () => `${mocks.packagedRendererBase}/?windowType=editor`,
+					},
+					senderFrame: {},
+				} as Parameters<typeof isTrustedPrompterSender>[0],
+				["editor"],
+			),
+		).toBe(false);
+	});
 });
 
 describe("prompter lifecycle boundaries", () => {

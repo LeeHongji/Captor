@@ -12,6 +12,7 @@ import {
 	type MessagePortMain,
 } from "electron";
 import { USER_DATA_PATH } from "../appPaths";
+import { getPackagedRendererBaseUrl } from "../rendererServer";
 import { PrompterAlignment } from "../../src/lib/prompterAlignment";
 import {
 	INITIAL_PROMPTER_STATE,
@@ -91,6 +92,10 @@ export function isTrustedPrompterSender(
 		pathToFileURL(path.join(app.getAppPath(), "dist", "index.html")).href,
 		process.env.VITE_DEV_SERVER_URL,
 	].filter(Boolean) as string[];
+	const packagedRendererBaseUrl = getPackagedRendererBaseUrl();
+	if (packagedRendererBaseUrl) {
+		bases.push(new URL("/", packagedRendererBaseUrl).href);
+	}
 	return isTrustedPrompterDocument(event.sender.getURL(), bases, allowed);
 }
 

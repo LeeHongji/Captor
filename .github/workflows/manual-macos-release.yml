@@ -74,6 +74,8 @@ jobs:
         run: npm run smoke:packaged-binaries
       - name: Verify manual distribution artifacts
         run: node scripts/verify-manual-macos.mjs ${{ matrix.arch }}
+      - name: Verify packaged recording preparation entries
+        run: node scripts/smoke-packaged-prompter.mjs ${{ matrix.arch }}
       - name: Verify real packaged export
         run: node scripts/smoke-manual-export.mjs ${{ matrix.arch }}
       - name: Preserve export diagnostics
