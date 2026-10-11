@@ -155,6 +155,9 @@ test("manual floating prompt maps a click to the original mixed-script position"
 }) => {
 	await installPrompter(page);
 	await page.goto("/?windowType=teleprompter");
+	await expect(page.getByRole("button", { name: "Hide teleprompter" })).toBeVisible({
+		timeout: 20000,
+	});
 	await page.evaluate(async () => {
 		await window.teleprompterAPI!.saveDraft({
 			version: 1,
