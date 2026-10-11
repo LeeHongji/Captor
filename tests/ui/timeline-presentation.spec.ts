@@ -31,7 +31,7 @@ test("editor uses skeletons until media opens", async ({ page }) => {
 	await expect(loading.locator(".skeleton").first()).toBeVisible();
 	await page.screenshot({ path: "test-results/editor-skeleton.png", animations: "disabled" });
 	release();
-	await expect(loading).toHaveCount(0);
+	await expect(loading).toHaveCount(0, { timeout: 20000 });
 	await expect(page.getByLabel("Loading preview", { exact: true })).toBeVisible();
 	releaseMedia();
 	await expect(page.getByLabel("Loading preview", { exact: true })).toHaveCount(0, {

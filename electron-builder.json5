@@ -41,6 +41,10 @@
   ],
   "extraResources": [
     {
+      "from": "LICENSE.md",
+      "to": "LICENSE.md"
+    },
+    {
       "from": "public/wallpapers",
       "to": "assets/wallpapers"
     }

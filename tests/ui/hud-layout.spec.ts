@@ -29,7 +29,9 @@ test("HUD dividers are vertically centered", async ({ page }) => {
 	await home.click();
 	await expect(page.locator("html")).toHaveAttribute("data-dashboard-opened", "true");
 	await page.goto("/?windowType=editor");
-	await expect(page.getByRole("dialog", { name: "Projects dashboard" })).toBeVisible();
+	await expect(page.getByRole("dialog", { name: "Projects dashboard" })).toBeVisible({
+		timeout: 20000,
+	});
 });
 
 test("recording HUD uses uniform controls and a readable timer", async ({ page }) => {

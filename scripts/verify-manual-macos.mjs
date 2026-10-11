@@ -38,6 +38,9 @@ function verifyApp(appPath) {
 	const expectedArch = arch === "x64" ? "x86_64" : "arm64";
 	if (!run("lipo", ["-archs", binary]).trim().split(/\s+/).includes(expectedArch))
 		throw Error("App architecture mismatch");
+	const license = fs.readFileSync(path.join(appPath, "Contents/Resources/LICENSE.md"));
+	if (!license.equals(fs.readFileSync("LICENSE.md")))
+		throw Error("Original license missing or modified in package");
 	const archive = path.join(appPath, "Contents/Resources/app.asar");
 	const metadata = JSON.parse(asar.extractFile(archive, "package.json").toString());
 	if (metadata.version !== pkg.version || metadata.captorDistribution !== "manual")
