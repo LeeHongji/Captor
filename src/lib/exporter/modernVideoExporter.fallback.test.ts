@@ -472,6 +472,41 @@ describe("ModernVideoExporter native fallback routing", () => {
 		expect(report).not.toContain("Windows Lightning exports can use WebCodecs or FFmpeg");
 	});
 
+	it.each([
+		"webgl",
+		"webgpu",
+	] as const)("honors an explicit %s renderer preference", async (backend) => {
+		const { FrameRenderer } = await import("./modernFrameRenderer");
+		mocks.streamingDecoderGetEffectiveDuration.mockReturnValue(1);
+		const exporter = new ModernVideoExporter({
+			videoUrl: "file:///recording.mp4",
+			width: 1920,
+			height: 1080,
+			frameRate: 30,
+			bitrate: 8_000_000,
+			wallpaper: "#101010",
+			padding: 0,
+			borderRadius: 24,
+			backgroundBlur: 0,
+			shadowIntensity: 0,
+			showShadow: false,
+			cropRegion: { x: 0, y: 0, width: 1, height: 1 },
+			backendPreference: "webcodecs",
+			preferredRenderBackend: backend,
+		} as never) as unknown as {
+			export: () => Promise<{ success: boolean }>;
+			initializeEncoder: () => Promise<unknown>;
+		};
+		vi.spyOn(exporter, "initializeEncoder").mockResolvedValue({
+			codec: "avc1.640033",
+			hardwareAcceleration: "prefer-software",
+		});
+		expect((await exporter.export()).success).toBe(true);
+		expect(FrameRenderer).toHaveBeenCalledWith(
+			expect.objectContaining({ preferredRenderBackend: backend }),
+		);
+	});
+
 	it("forwards cursor click-effect settings into the modern frame renderer", async () => {
 		const { ModernVideoExporter } = await import("./modernVideoExporter");
 		const { FrameRenderer } = await import("./modernFrameRenderer");

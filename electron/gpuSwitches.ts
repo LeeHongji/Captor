@@ -45,6 +45,19 @@ export function getGpuSwitches(
 	env: NodeJS.ProcessEnv = process.env,
 ): GpuSwitches {
 	if (platform === "darwin") {
+		// Hosted Intel Macs have no Metal device. Keep WebCodecs available while
+		// the explicit CI export smoke uses Chromium's CPU graphics driver.
+		if (
+			env.CI === "true" &&
+			env.CAPTOR_SMOKE_EXPORT === "1" &&
+			env.CAPTOR_SMOKE_EXPORT_SOFTWARE_GL === "1"
+		) {
+			return {
+				useAngle: "swiftshader",
+				useGl: "angle",
+				disableFeatures: ["MacCatapLoopbackAudioForScreenShare"],
+			};
+		}
 		return {
 			useAngle: "metal",
 			disableFeatures: ["MacCatapLoopbackAudioForScreenShare"],

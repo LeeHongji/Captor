@@ -81,6 +81,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: export-diagnostics-${{ matrix.arch }}
+          include-hidden-files: true
           path: |
             .tmp/manual-export-*.report.json
             .tmp/manual-export-*.log

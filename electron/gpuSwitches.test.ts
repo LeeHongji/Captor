@@ -65,3 +65,31 @@ describe("getGpuSwitches", () => {
 		});
 	});
 });
+
+describe("macOS export verification graphics", () => {
+	it("uses a software graphics driver only for an explicit CI smoke export", () => {
+		expect(
+			getGpuSwitches("darwin", {
+				CI: "true",
+				CAPTOR_SMOKE_EXPORT: "1",
+				CAPTOR_SMOKE_EXPORT_SOFTWARE_GL: "1",
+			}),
+		).toEqual({
+			useAngle: "swiftshader",
+			useGl: "angle",
+			disableFeatures: ["MacCatapLoopbackAudioForScreenShare"],
+		});
+	});
+	it("preserves Metal for normal app starts and physical Mac export tests", () => {
+		for (const env of [
+			{},
+			{ CI: "true" },
+			{ CAPTOR_SMOKE_EXPORT: "1", CAPTOR_SMOKE_EXPORT_SOFTWARE_GL: "1" },
+			{ CI: "true", CAPTOR_SMOKE_EXPORT_SOFTWARE_GL: "1" },
+		])
+			expect(getGpuSwitches("darwin", env)).toEqual({
+				useAngle: "metal",
+				disableFeatures: ["MacCatapLoopbackAudioForScreenShare"],
+			});
+	});
+});

@@ -23,6 +23,12 @@ const child = spawn(executable, [], {
 		CAPTOR_SMOKE_EXPORT_FPS: "30",
 		CAPTOR_SMOKE_EXPORT_QUALITY: "medium",
 		CAPTOR_DISABLE_AUTO_UPDATES: "1",
+		...(process.env.CI === "true" && arch === "x64"
+			? {
+					CAPTOR_SMOKE_EXPORT_SOFTWARE_GL: "1",
+					CAPTOR_SMOKE_EXPORT_RENDER_BACKEND: "webgl",
+				}
+			: {}),
 	},
 	stdio: ["ignore", "pipe", "pipe"],
 });

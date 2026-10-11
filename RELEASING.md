@@ -16,7 +16,7 @@ Build a candidate from the intended branch:
 gh workflow run build.yml --ref <branch> -f manual_release=v0.0.2
 ```
 
-This dispatch calls `manual-macos-release.yml`, runs repository and UI checks, and builds on native Apple Silicon and Intel runners. It uses `electron-builder.manual.json5`: ad-hoc signing, no Developer ID certificate, no notarization, macOS 14+ and no automatic-update metadata. Candidate builds never publish unless `publish_manual=true` is explicitly passed. Both matrix jobs and the quality job must pass before release.
+This dispatch calls `manual-macos-release.yml`, runs repository and UI checks, and builds on native Apple Silicon and Intel runners. It uses `electron-builder.manual.json5`: ad-hoc signing, no Developer ID certificate, no notarization, macOS 14+ and no automatic-update metadata. Candidate builds never publish unless `publish_manual=true` is explicitly passed. Both matrix jobs and the quality job must pass before release. Intel hosted runners have no Metal device: their normal packaged-app export test uses an explicitly gated SwiftShader graphics driver while retaining WebCodecs software encoding. Physical Mac app starts keep Metal; Apple Silicon CI exercises the default accelerated path.
 
 Download the `manual-macos-arm64` and `manual-macos-x64` artifacts from that exact run. Check both `source-sha.txt` files against the intended commit, validate each checksum file and inspect the DMG/ZIP verification reports. Publish only `Captor-<version>-arm64.dmg`, `Captor-<version>-x64.dmg` and a merged `SHA256SUMS.txt` covering those two installers. Do not upload `latest-mac.yml` or other automatic-update feeds for this lane.
 
