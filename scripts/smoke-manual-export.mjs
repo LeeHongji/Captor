@@ -36,8 +36,15 @@ const exitCode = await new Promise((resolve, reject) => {
 	clearTimeout(timer);
 	log.end();
 });
-if (exitCode !== 0) throw Error(`Packaged export exited ${exitCode}; see ${output}.log`);
+if (exitCode !== 0) {
+	console.error(fs.readFileSync(`${output}.log`, "utf8").slice(-12000));
+	throw Error(`Packaged export exited ${exitCode}; see ${output}.log`);
+}
 const report = JSON.parse(fs.readFileSync(`${output}.report.json`, "utf8"));
-if (report.success !== true || !fs.statSync(output).size)
+if (report.success !== true) {
+	console.error(JSON.stringify({ arch, report }));
+	console.error(fs.readFileSync(`${output}.log`, "utf8").slice(-12000));
 	throw Error(`Packaged export failed; see ${output}.report.json`);
+}
+if (!fs.statSync(output).size) throw Error("Packaged export produced an empty video.");
 console.log(JSON.stringify({ arch, output, bytes: fs.statSync(output).size, report }));
