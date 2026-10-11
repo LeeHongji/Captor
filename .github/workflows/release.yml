@@ -31,6 +31,8 @@ concurrency:
 
 jobs:
   prepare-release:
+    if: >-
+      github.event_name != 'release' || !contains(github.event.release.body, '<!-- captor-distribution: manual -->')
     name: Prepare release
     runs-on: ubuntu-latest
     outputs:
@@ -45,6 +47,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.tag_name }}
           fetch-depth: 0
+
+      - name: Enforce signed distribution lane
+        run: node -e 'if (require("./package.json").captorDistribution !== "signed") throw Error("This source is a manual distribution. Use the manual macOS candidate workflow; signed publishing must not overwrite it.");'
 
       - name: Validate release tag
         id: prepare

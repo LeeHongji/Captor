@@ -50,7 +50,15 @@ export async function installDesktopBridge(page: Page, videoFixture = "preview.m
 						? { success: false, error: "Could not open your email app." }
 						: { success: true };
 				},
-				getAppVersion: async () => "1.4.0",
+				getAppVersion: async () => "0.0.2",
+				getUpdateStatusSummary: async () => ({
+					status: "idle",
+					currentVersion: "0.0.2",
+					availableVersion: null,
+					distributionMode: "manual",
+				}),
+				openUpdateDownloadPage: success,
+				checkForAppUpdates: success,
 				getProjectPreview: async () => ({ success: false, error: "Preview unavailable" }),
 				getAnnouncements: async () => ({ success: true, announcements: [] }),
 				loadCurrentProjectFile: async () => ({ success: false }),

@@ -91,7 +91,9 @@
 		"notNow": "Не сейчас",
 		"updateNow": "Обновить сейчас",
 		"restartToUpdate": "Перезапустить для обновления",
-		"tryAgain": "Повторить"
+		"tryAgain": "Повторить",
+		"downloadInstaller": "Скачать установщик",
+		"manualInstructions": "Обновления устанавливаются вручную. Сохраните работу и закройте Captor перед заменой приложения."
 	},
 	"prompter": {
 		"prepare": "Prepare narration",

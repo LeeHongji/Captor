@@ -91,7 +91,9 @@
 		"notNow": "暫不",
 		"updateNow": "立即更新",
 		"restartToUpdate": "重新啟動以更新",
-		"tryAgain": "重試"
+		"tryAgain": "重試",
+		"downloadInstaller": "下載安裝程式",
+		"manualInstructions": "此版本需要手動更新。替換應用程式前，請儲存工作並結束 Captor。"
 	},
 	"prompter": {
 		"prepare": "準備口播",

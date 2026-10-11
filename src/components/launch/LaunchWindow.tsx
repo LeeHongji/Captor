@@ -13,7 +13,7 @@ import {
 	XIcon,
 	File,
 } from "@/components/ui/icons";
-import { AnimatePresence, motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { Separator } from "@/components/ui/separator";
 import { useScopedT } from "../../contexts/I18nContext";
@@ -191,8 +191,9 @@ function LaunchWindowContent() {
 		};
 	}, [syncSelectedSource]);
 
+	const reduceMotion = useReducedMotion();
 	const hudStateTransition = {
-		duration: 0.24,
+		duration: reduceMotion ? 0 : 0.18,
 		ease: [0.22, 1, 0.36, 1] as const,
 	};
 
@@ -483,7 +484,7 @@ function LaunchWindowContent() {
 						>
 							<motion.div
 								ref={hudBarRef}
-								layout={shouldAnimateHudLayout}
+								layout={shouldAnimateHudLayout && !reduceMotion}
 								transition={hudStateTransition}
 								className={`${styles.bar} launch-theme mb-2 pointer-events-auto`}
 								onMouseEnter={handleHudMouseEnter}
@@ -504,43 +505,24 @@ function LaunchWindowContent() {
 									<DotsThreeVerticalIcon
 										weight="fill"
 										size={18}
-										className="text-[#6b6b78]"
+										className="text-muted-foreground"
 									/>
 								</div>
 
 								<div className={styles.barStateViewport}>
-									<AnimatePresence initial={false} mode="wait">
-										<motion.div
-											key={hudMode}
-											layout={shouldAnimateHudLayout}
-											className={styles.barState}
-											initial={{
-												opacity: 0,
-												y: 10,
-												scale: 0.985,
-												filter: "blur(8px)",
-											}}
-											animate={{
-												opacity: 1,
-												y: 0,
-												scale: 1,
-												filter: "blur(0px)",
-											}}
-											exit={{
-												opacity: 0,
-												y: -10,
-												scale: 0.985,
-												filter: "blur(6px)",
-											}}
-											transition={hudStateTransition}
-										>
-											{finalizing
-												? finalizingControls
-												: recording
-													? recordingControls
-													: idleControls}
-										</motion.div>
-									</AnimatePresence>
+									<motion.div
+										key={hudMode}
+										layout={shouldAnimateHudLayout && !reduceMotion}
+										className={styles.barState}
+										initial={false}
+										transition={hudStateTransition}
+									>
+										{finalizing
+											? finalizingControls
+											: recording
+												? recordingControls
+												: idleControls}
+									</motion.div>
 								</div>
 							</motion.div>
 						</div>

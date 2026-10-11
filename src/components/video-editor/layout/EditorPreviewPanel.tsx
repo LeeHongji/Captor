@@ -144,7 +144,7 @@ export function EditorPreviewPanel(props: Props) {
 									>
 										<span>{getAspectRatioLabel(ratio)}</span>
 										{aspectRatio === ratio ? (
-											<Check className="h-3 w-3 text-[#2563EB]" />
+											<Check className="h-3 w-3 text-primary" />
 										) : null}
 									</DropdownMenuItem>
 								))}
@@ -160,7 +160,7 @@ export function EditorPreviewPanel(props: Props) {
 							<Crop className="h-3.5 w-3.5" />
 							<span className="font-medium">{t("settings.crop.title")}</span>
 							{isCropped ? (
-								<span className="h-1.5 w-1.5 rounded-full bg-[#2563EB]" />
+								<span className="h-1.5 w-1.5 rounded-full bg-primary" />
 							) : null}
 						</Button>
 					</div>

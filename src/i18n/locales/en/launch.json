@@ -91,7 +91,9 @@
 		"notNow": "Not now",
 		"updateNow": "Update now",
 		"restartToUpdate": "Restart to update",
-		"tryAgain": "Try again"
+		"tryAgain": "Try again",
+		"downloadInstaller": "Download installer",
+		"manualInstructions": "Updates are installed manually. Save your work and quit Captor before replacing the app."
 	},
 	"prompter": {
 		"prepare": "Prepare narration",

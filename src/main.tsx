@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { MotionConfig } from "motion/react";
 import App from "./App.tsx";
 import { I18nProvider } from "./contexts/I18nContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
@@ -9,10 +10,12 @@ document.documentElement.dataset.platform = /mac/i.test(navigator.platform) ? "m
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
 	<React.StrictMode>
-		<ThemeProvider>
-			<I18nProvider>
-				<App />
-			</I18nProvider>
-		</ThemeProvider>
+		<MotionConfig reducedMotion="user">
+			<ThemeProvider>
+				<I18nProvider>
+					<App />
+				</I18nProvider>
+			</ThemeProvider>
+		</MotionConfig>
 	</React.StrictMode>,
 );

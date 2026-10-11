@@ -1,3 +1,4 @@
+import { UpdateSettings } from "./UpdateSettings";
 import { SettingsSections, SettingsCategory } from "./SettingsSections";
 import { Card, RadioGroup, Radio, Label, Description } from "@heroui/react";
 import { ProgressBar } from "@heroui/react";
@@ -2292,6 +2293,7 @@ export function SettingsPanel({
 							</SelectContent>
 						</Select>
 					</SettingsRow>
+					<UpdateSettings />
 				</SettingsCategory>
 				<SettingsCategory category="advanced">
 					{advanced && (

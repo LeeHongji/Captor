@@ -4,7 +4,29 @@ This repository now uses `electron-builder` + `electron-updater` for macOS, Wind
 
 For this Electron app, that is the right path instead of wiring Sparkle.framework directly. On macOS, `electron-updater` handles the release metadata and update flow that Sparkle would otherwise cover in a native app, while still sharing the same GitHub Releases pipeline used by Windows and Linux.
 
-## What the release workflow does
+## Current distribution: manual macOS installation
+
+Captor uses its own 0.0.x version line; the Recordly 1.4.0 snapshot is an upstream source baseline, not a Captor release version.
+
+`package.json` sets `captorDistribution` to `manual`. macOS builds use the existing GitHub version checks but direct users to release installers instead of downloading or restarting automatically. Development builds retain their update guards. Public GitHub release reads require no user token.
+
+Build a candidate from the intended branch:
+
+```bash
+gh workflow run build.yml --ref <branch> -f manual_release=v0.0.2
+```
+
+This dispatch calls `manual-macos-release.yml`, runs repository and UI checks, and builds on native Apple Silicon and Intel runners. It uses `electron-builder.manual.json5`: ad-hoc signing, no Developer ID certificate, no notarization, macOS 14+ and no automatic-update metadata. Candidate builds never publish unless `publish_manual=true` is explicitly passed. Both matrix jobs and the quality job must pass before release.
+
+Download the `manual-macos-arm64` and `manual-macos-x64` artifacts from that exact run. Check both `source-sha.txt` files against the intended commit, validate each checksum file and inspect the DMG/ZIP verification reports. Publish only `Captor-<version>-arm64.dmg`, `Captor-<version>-x64.dmg` and a merged `SHA256SUMS.txt` covering those two installers. Do not upload `latest-mac.yml` or other automatic-update feeds for this lane.
+
+To publish the verified source, dispatch the same branch with `-f manual_release=v0.0.2 -f publish_manual=true`. The publishing job waits for quality and both native packages, checks their source SHA, architecture reports and checksums, creates a draft, uploads both installers and checksums, and then publishes it. It uses the workflow GITHUB_TOKEN so release events do not invoke the separate signed-release workflow; see [GitHub token event rules](https://docs.github.com/en/actions/concepts/security/github_token). Existing releases are never overwritten. Publication atomically creates a new tag at the verified source SHA and refuses an existing tag; if a network interruption leaves a tag or draft behind, inspect the remote state before recovering that same release. The body must include `<!-- captor-distribution: manual -->`; this prevents the separate signed-release workflow from starting. Keep the tag, package, lockfile and release notes at the same version. Never replace an already published version with rebuilt binaries.
+
+Install by dragging Captor into Applications. After the first blocked launch, use System Settings → Privacy & Security → Open Anyway for this app. Document that this build is not Developer ID signed or notarized. Updating requires saving, quitting and replacing the app; test project/settings retention and capture permissions after replacement. Managed Macs may prohibit this exception.
+
+When certificates are ready, change `captorDistribution` to `signed`, use the signed candidate gates below and manually install the first signed version. Subsequent signed versions can use automatic updates. Preserve `dev.captor.app`, `.captor` compatibility and the production data directory throughout. If an installer has a defect, withdraw that release and publish a new patch; do not change user data or silently reuse a tag.
+
+## Signed release workflow (after certificate setup)
 
 When you publish a GitHub release tagged like `v1.2.3`, `.github/workflows/release.yml` will:
 
@@ -15,7 +37,7 @@ When you publish a GitHub release tagged like `v1.2.3`, `.github/workflows/relea
 - build and sign the Windows NSIS installer
 - build the Linux AppImage
 - publish installer artifacts and auto-update metadata files to the GitHub release
-- dispatch the Homebrew tap workflow after the release assets are available
+- keep distribution scoped to this repository; Homebrew and WinGet are not configured
 
 The packaged app then checks GitHub Releases for:
 

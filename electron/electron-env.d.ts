@@ -55,10 +55,11 @@ interface UpdateToastState {
 	totalBytes?: number;
 	remainingBytes?: number;
 	bytesPerSecond?: number;
-	primaryAction?: "install-and-restart" | "retry-check";
+	primaryAction?: "install-and-restart" | "retry-check" | "open-download";
 }
 
 interface UpdateStatusSummary {
+	distributionMode?: "manual" | "automatic";
 	status: "idle" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "error";
 	currentVersion: string;
 	availableVersion: string | null;
@@ -901,6 +902,7 @@ interface Window {
 		dismissUpdateToast: () => Promise<{ success: boolean }>;
 		skipUpdateVersion: () => Promise<{ success: boolean; message?: string }>;
 		getCurrentUpdateToastPayload: () => Promise<UpdateToastState | null>;
+		openUpdateDownloadPage: () => Promise<{ success: boolean; message?: string }>;
 		getUpdateStatusSummary: () => Promise<UpdateStatusSummary>;
 		getExperimentalUpdatesEnabled: () => Promise<boolean>;
 		setExperimentalUpdatesEnabled: (enabled: boolean) => Promise<{

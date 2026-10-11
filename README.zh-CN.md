@@ -19,6 +19,12 @@ Captor fork 自 [Recordly](https://github.com/webadderallorg/Recordly)，基于�
 
 上游已经停用的扩展安装与市场占位页面保持停用，不影响录制、编辑和导出。
 
+## macOS 安装
+
+从 [Captor Releases](https://github.com/LeeHongji/Captor/releases) 下载 Apple Silicon（arm64）或 Intel（x64）对应的 DMG，要求 macOS 14 或更新版本。打开后将 Captor 拖入“应用程序”。
+
+当前安装版使用 ad-hoc 签名，尚未经过 Developer ID 签名和 Apple 公证。首次打开被拦截后，可在“系统设置 → 隐私与安全性”中为 Captor 选择“仍要打开”；受管理的电脑可能限制此操作。应用会检查新版本，更新前请保存工作、退出应用，再下载并替换。后续签名版将接入自动安装更新。
+
 ## 从源码运行
 
 需要 Node.js 22.12 或更新版本，以及对应平台的构建依赖：

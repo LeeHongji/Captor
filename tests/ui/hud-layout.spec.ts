@@ -4,7 +4,7 @@ import { installDesktopBridge } from "./bridge";
 test("HUD dividers are vertically centered", async ({ page }) => {
 	await installDesktopBridge(page);
 	await page.goto("/?windowType=hud-overlay");
-	const dividers = page.locator(".separator--vertical");
+	const dividers = page.locator('[role="separator"][data-orientation="vertical"]');
 	await expect(dividers.first()).toBeVisible();
 	const offsets = await dividers.evaluateAll((elements) =>
 		elements.map((element) => {
@@ -19,12 +19,10 @@ test("HUD dividers are vertically centered", async ({ page }) => {
 	await expect(page.getByRole("button", { name: "More", exact: true })).toHaveCount(0);
 	await expect
 		.poll(async () =>
-			home
-				.locator("svg")
-				.evaluate((element) => ({
-					width: element.getBoundingClientRect().width,
-					height: element.getBoundingClientRect().height,
-				})),
+			home.locator("svg").evaluate((element) => ({
+				width: element.getBoundingClientRect().width,
+				height: element.getBoundingClientRect().height,
+			})),
 		)
 		.toEqual({ width: 20, height: 20 });
 	await page.screenshot({ path: "test-results/hud-idle.png", animations: "disabled" });
@@ -44,7 +42,9 @@ test("recording HUD uses uniform controls and a readable timer", async ({ page }
 		};
 	});
 	await page.goto("/?windowType=hud-overlay");
-	await expect(page.locator(".separator--vertical").first()).toBeVisible();
+	await expect(
+		page.locator('[role="separator"][data-orientation="vertical"]').first(),
+	).toBeVisible();
 	await page.evaluate(() => window.dispatchEvent(new Event("test-recording-started")));
 	const controls = page.getByRole("group", { name: "Recording controls" });
 	await expect(controls).toBeVisible();

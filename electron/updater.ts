@@ -1,11 +1,21 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { MessageBoxOptions, MessageBoxReturnValue } from "electron";
-import { app, BrowserWindow, dialog } from "electron";
+import { app, BrowserWindow, dialog, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import { USER_DATA_PATH } from "./appPaths";
 import { readAppSetting, writeAppSetting } from "./appSettingsStore";
 import { EXPERIMENTAL_UPDATE_DESCRIPTION, getUpdateChannelConfiguration } from "./updateChannel";
+
+import { CAPTOR_RELEASES_URL, fetchManualRelease } from "./manualRelease";
+import packageMetadata from "../package.json";
+
+const MANUAL_DISTRIBUTION =
+	process.platform === "darwin" && packageMetadata.captorDistribution === "manual";
+let manualReleaseUrl = CAPTOR_RELEASES_URL;
+let manualToastSender: UpdateToastSender | undefined;
+let manualCheckPromise: Promise<void> | null = null;
+let manualCheckGeneration = 0;
 
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const INITIAL_UPDATE_CHECK_DELAY_MS = 15 * 1000;
@@ -37,6 +47,7 @@ export type UpdateStatusKind =
 export interface UpdateStatusSummary {
 	status: UpdateStatusKind;
 	currentVersion: string;
+	distributionMode?: "manual" | "automatic";
 	availableVersion: string | null;
 	detail?: string;
 }
@@ -53,7 +64,7 @@ export interface UpdateToastPayload {
 	totalBytes?: number;
 	remainingBytes?: number;
 	bytesPerSecond?: number;
-	primaryAction?: "install-and-restart" | "retry-check";
+	primaryAction?: "install-and-restart" | "retry-check" | "open-download";
 }
 
 interface DownloadProgressSnapshot {
@@ -154,6 +165,14 @@ export function setExperimentalUpdatesEnabled(enabled: boolean) {
 	writeAppSetting(EXPERIMENTAL_UPDATES_SETTING_KEY, enabled);
 	applyExperimentalUpdatesPreference();
 	skippedVersion = null;
+	if (MANUAL_DISTRIBUTION) {
+		manualCheckGeneration++;
+		availableVersion = null;
+		manualReleaseUrl = CAPTOR_RELEASES_URL;
+		clearDeferredReminderTimer();
+		clearVisibleUpdateToast(manualToastSender);
+		setUpdateStatusSummary({ status: "idle", availableVersion: null, detail: undefined });
+	}
 	writeUpdaterLog(`Experimental updates ${enabled ? "enabled" : "disabled"} by user.`);
 	return enabled;
 }
@@ -220,12 +239,14 @@ function createAvailableUpdateToastPayload(
 	return {
 		version,
 		phase: "available",
-		detail: isExperimental
-			? EXPERIMENTAL_UPDATE_DESCRIPTION
-			: "Install the latest version now, or remind yourself to come back to it later.",
+		detail: MANUAL_DISTRIBUTION
+			? "Download the installer from GitHub. Save your work and quit Captor before replacing the app."
+			: isExperimental
+				? EXPERIMENTAL_UPDATE_DESCRIPTION
+				: "Install the latest version now, or remind yourself to come back to it later.",
 		delayMs: UPDATE_REMINDER_DELAY_MS,
 		isExperimental,
-		primaryAction: "install-and-restart",
+		primaryAction: MANUAL_DISTRIBUTION ? "open-download" : "install-and-restart",
 	};
 }
 
@@ -330,7 +351,10 @@ export function getUpdaterLogPath() {
 }
 
 export function getUpdateStatusSummary() {
-	return updateStatusSummary;
+	return {
+		...updateStatusSummary,
+		distributionMode: MANUAL_DISTRIBUTION ? ("manual" as const) : ("automatic" as const),
+	};
 }
 
 function resetDevPreviewState(sendToRenderer?: UpdateToastSender) {
@@ -434,6 +458,7 @@ export function installDownloadedUpdateNow(sendToRenderer?: UpdateToastSender) {
 		return;
 	}
 
+	if (MANUAL_DISTRIBUTION || !canUseAutoUpdates()) return;
 	clearDeferredReminderTimer();
 	downloadToastDismissed = false;
 	installAfterDownloadRequested = false;
@@ -447,9 +472,10 @@ export async function downloadAvailableUpdate(
 	sendToRenderer?: UpdateToastSender,
 	options?: { installAfterDownload?: boolean },
 ) {
-	if (currentToastPayload?.isPreview) {
-		return simulateDevPreviewDownload(sendToRenderer);
-	}
+	if (currentToastPayload?.isPreview) return simulateDevPreviewDownload(sendToRenderer);
+	if (!canUseAutoUpdates())
+		return { success: false, message: "Automatic updates are unavailable in this build." };
+	if (MANUAL_DISTRIBUTION) return openUpdateDownloadPage();
 
 	if (!availableVersion) {
 		return { success: false, message: "No update is ready to download." };
@@ -594,8 +620,10 @@ async function showAvailableUpdateDialog(
 			? `${isExperimental ? EXPERIMENTAL_UPDATE_DESCRIPTION : "This is a development preview of the standard update flow."} No real update will be installed.`
 			: isExperimental
 				? EXPERIMENTAL_UPDATE_DESCRIPTION
-				: "Install and restart now, or remind me later.",
-		buttons: ["Install & Restart", "Later"],
+				: MANUAL_DISTRIBUTION
+					? "Download the installer from GitHub. Save your work and quit Captor before replacing the app."
+					: "Install and restart now, or remind me later.",
+		buttons: [MANUAL_DISTRIBUTION ? "Download Installer" : "Install & Restart", "Later"],
 		defaultId: 0,
 		cancelId: 1,
 		noLink: true,
@@ -637,8 +665,10 @@ async function showDownloadedUpdateDialog(
 			: `Captor ${version} has been downloaded.`,
 		detail: isPreview
 			? "Development preview of the native update prompt. No real update will be installed."
-			: "Install and restart now, or remind me later.",
-		buttons: ["Install & Restart", "Later"],
+			: MANUAL_DISTRIBUTION
+				? "Download the installer from GitHub. Save your work and quit Captor before replacing the app."
+				: "Install and restart now, or remind me later.",
+		buttons: [MANUAL_DISTRIBUTION ? "Download Installer" : "Install & Restart", "Later"],
 		defaultId: 0,
 		cancelId: 1,
 		noLink: true,
@@ -715,6 +745,82 @@ export async function checkForAppUpdates(
 		return;
 	}
 
+	if (MANUAL_DISTRIBUTION) {
+		manualCheckRequested ||= Boolean(options?.manual);
+		if (manualCheckPromise) return manualCheckPromise;
+		manualCheckPromise = (async () => {
+			let generation: number;
+			do {
+				generation = manualCheckGeneration;
+				setUpdateStatusSummary({ status: "checking", availableVersion: null });
+				try {
+					const release = await fetchManualRelease(
+						app.getVersion(),
+						getExperimentalUpdatesEnabled(),
+						process.arch,
+					);
+					if (generation !== manualCheckGeneration) continue;
+					availableVersion = release?.version ?? null;
+					manualReleaseUrl = release?.url ?? CAPTOR_RELEASES_URL;
+					setUpdateStatusSummary({
+						status: release ? "available" : "up-to-date",
+						availableVersion,
+						detail: release
+							? "A newer installer is available on GitHub."
+							: "No newer installer is available.",
+					});
+					if (!release) {
+						clearDeferredReminderTimer();
+						clearVisibleUpdateToast(manualToastSender);
+					}
+					if (release && (manualCheckRequested || skippedVersion !== release.version)) {
+						const payload = createAvailableUpdateToastPayload(
+							release.version,
+							release.prerelease,
+						);
+						if (!emitUpdateToastState(manualToastSender, payload))
+							await showAvailableUpdateDialog(
+								getMainWindow,
+								release.version,
+								manualToastSender,
+							);
+					} else if (manualCheckRequested && !release) {
+						await showMessageBox(getMainWindow, {
+							type: "info",
+							title: "Captor Updates",
+							message: "No newer Captor installer is available.",
+							detail: "You can browse all releases from Settings.",
+							buttons: ["OK"],
+						});
+					}
+				} catch (error) {
+					if (generation !== manualCheckGeneration) continue;
+					setUpdateStatusSummary({
+						status: "error",
+						availableVersion: null,
+						detail: "Could not reach GitHub. Try again or browse releases.",
+					});
+					writeUpdaterLog("Manual update check failed.", error);
+					if (manualCheckRequested)
+						await showMessageBox(getMainWindow, {
+							type: "warning",
+							title: "Captor Updates",
+							message: "Could not check for updates.",
+							detail: "Your recordings and projects remain available. Try again or browse releases from Settings.",
+							buttons: ["OK"],
+						});
+				}
+			} while (generation !== manualCheckGeneration);
+		})();
+		try {
+			await manualCheckPromise;
+		} finally {
+			manualCheckPromise = null;
+			manualCheckRequested = false;
+		}
+		return;
+	}
+
 	if (updateCheckInProgress) {
 		writeUpdaterLog("Skipped update check because a previous check is still running.");
 		return;
@@ -756,6 +862,18 @@ export function setupAutoUpdates(
 	}
 
 	updaterInitialized = true;
+	if (MANUAL_DISTRIBUTION) {
+		manualToastSender = sendToRenderer;
+		initialCheckTimer = setTimeout(
+			() => void checkForAppUpdates(getMainWindow),
+			INITIAL_UPDATE_CHECK_DELAY_MS,
+		);
+		periodicCheckTimer = setInterval(
+			() => void checkForAppUpdates(getMainWindow),
+			UPDATE_CHECK_INTERVAL_MS,
+		);
+		return;
+	}
 	configureUpdateFeed();
 	applyExperimentalUpdatesPreference();
 	autoUpdater.autoDownload = false;
@@ -927,4 +1045,14 @@ export function setupAutoUpdates(
 			periodicCheckTimer = null;
 		}
 	});
+}
+
+// No renderer-provided URL is accepted: only this project's release pages open.
+export async function openUpdateDownloadPage() {
+	try {
+		await shell.openExternal(manualReleaseUrl);
+		return { success: true };
+	} catch {
+		return { success: false, message: "Could not open the Captor releases page." };
+	}
 }

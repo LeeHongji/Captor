@@ -12,7 +12,7 @@
 		"url": "https://github.com/LeeHongji/Captor/issues"
 	},
 	"private": true,
-	"version": "1.4.0",
+	"version": "0.0.2",
 	"type": "module",
 	"scripts": {
 		"dev": "vite --config vite.config.ts",
@@ -47,7 +47,10 @@
 		"test:watch": "vitest",
 		"typecheck": "tsc --noEmit",
 		"test:ui": "playwright test",
-		"dev:ui": "vite --mode ui --host 127.0.0.1"
+		"dev:ui": "vite --mode ui --host 127.0.0.1",
+		"icons:build": "node scripts/build-icons.mjs",
+		"build:mac:manual": "npm run build:platform-native-helpers && tsc && vite build --config vite.config.ts && npm run normalize:electron-main-cjs && npm run smoke:electron-main-cjs && electron-builder --config electron-builder.manual.json5 --mac --publish never",
+		"verify:macos-manual": "node scripts/verify-manual-macos.mjs"
 	},
 	"dependencies": {
 		"@phosphor-icons/react": "^2.1.10",
@@ -103,5 +106,6 @@
 		"vitest": "^3.2.7",
 		"web-demuxer": "^4.0.0"
 	},
-	"main": "dist-electron/main.cjs"
+	"main": "dist-electron/main.cjs",
+	"captorDistribution": "manual"
 }

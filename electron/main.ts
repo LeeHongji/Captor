@@ -42,6 +42,7 @@ import {
 	getUpdaterLogPath,
 	getUpdateStatusSummary,
 	installDownloadedUpdateNow,
+	openUpdateDownloadPage,
 	previewNativeUpdateDialog,
 	previewUpdateToast,
 	setExperimentalUpdatesEnabled,
@@ -668,6 +669,8 @@ ipcMain.handle("skip-update-version", () => {
 ipcMain.handle("get-current-update-toast-payload", () => {
 	return getCurrentUpdateToastPayload();
 });
+
+ipcMain.handle("open-update-download-page", () => openUpdateDownloadPage());
 
 ipcMain.handle("get-update-status-summary", () => {
 	return getUpdateStatusSummary();

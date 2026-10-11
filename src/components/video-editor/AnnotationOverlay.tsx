@@ -241,7 +241,7 @@ export function AnnotationOverlay({
 			bounds="parent"
 			className={cn(
 				"cursor-move transition-all",
-				isSelected && "ring-2 ring-[#2563EB] ring-offset-2 ring-offset-transparent",
+				isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-transparent",
 			)}
 			style={{
 				zIndex: isSelectedBoost ? zIndex + 1000 : zIndex, // Boost selected annotation to ensure it's on top
@@ -257,7 +257,7 @@ export function AnnotationOverlay({
 					width: "12px",
 					height: "12px",
 					backgroundColor: isSelected ? "white" : "transparent",
-					border: isSelected ? "2px solid #2563EB" : "none",
+					border: isSelected ? "2px solid var(--accent)" : "none",
 					borderRadius: "50%",
 					left: "-6px",
 					top: "-6px",
@@ -267,7 +267,7 @@ export function AnnotationOverlay({
 					width: "12px",
 					height: "12px",
 					backgroundColor: isSelected ? "white" : "transparent",
-					border: isSelected ? "2px solid #2563EB" : "none",
+					border: isSelected ? "2px solid var(--accent)" : "none",
 					borderRadius: "50%",
 					right: "-6px",
 					top: "-6px",
@@ -277,7 +277,7 @@ export function AnnotationOverlay({
 					width: "12px",
 					height: "12px",
 					backgroundColor: isSelected ? "white" : "transparent",
-					border: isSelected ? "2px solid #2563EB" : "none",
+					border: isSelected ? "2px solid var(--accent)" : "none",
 					borderRadius: "50%",
 					left: "-6px",
 					bottom: "-6px",
@@ -287,7 +287,7 @@ export function AnnotationOverlay({
 					width: "12px",
 					height: "12px",
 					backgroundColor: isSelected ? "white" : "transparent",
-					border: isSelected ? "2px solid #2563EB" : "none",
+					border: isSelected ? "2px solid var(--accent)" : "none",
 					borderRadius: "50%",
 					right: "-6px",
 					bottom: "-6px",

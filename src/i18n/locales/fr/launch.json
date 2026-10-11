@@ -91,7 +91,9 @@
 		"notNow": "Plus tard",
 		"updateNow": "Mettre à jour",
 		"restartToUpdate": "Redémarrer pour mettre à jour",
-		"tryAgain": "Réessayer"
+		"tryAgain": "Réessayer",
+		"downloadInstaller": "Télécharger le programme d’installation",
+		"manualInstructions": "Les mises à jour sont manuelles. Enregistrez votre travail et quittez Captor avant de remplacer l’application."
 	},
 	"prompter": {
 		"prepare": "Prepare narration",

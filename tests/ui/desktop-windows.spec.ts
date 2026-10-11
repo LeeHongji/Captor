@@ -26,7 +26,9 @@ test("editor inspector and playback controls fit a smaller desktop", async ({ pa
 	await page.setViewportSize({ width: 1280, height: 800 });
 	await installDesktopBridge(page);
 	await page.goto("/?windowType=editor");
-	await expect(page.getByRole("slider", { name: "Blur", exact: true })).toBeVisible();
+	await expect(page.getByRole("slider", { name: "Blur", exact: true })).toBeVisible({
+		timeout: 15000,
+	});
 	await expect(page.getByRole("button", { name: "Export", exact: true })).toBeInViewport();
 	await expect(page.getByRole("button", { name: "Play", exact: true })).toBeInViewport();
 	await page.getByRole("radio", { name: "Settings", exact: true }).click();

@@ -1,0 +1,10 @@
+{
+  "extends": "./electron-builder.json5",
+  "publish": null,
+  "mac": {
+    "identity": "-",
+    "forceCodeSigning": false,
+    "notarize": false,
+    "minimumSystemVersion": "14.0"
+  }
+}

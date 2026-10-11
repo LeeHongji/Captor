@@ -929,6 +929,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getCurrentUpdateToastPayload: () => {
 		return ipcRenderer.invoke("get-current-update-toast-payload");
 	},
+	openUpdateDownloadPage: () => ipcRenderer.invoke("open-update-download-page"),
 	getUpdateStatusSummary: () => {
 		return ipcRenderer.invoke("get-update-status-summary");
 	},
@@ -957,7 +958,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 				totalBytes?: number;
 				remainingBytes?: number;
 				bytesPerSecond?: number;
-				primaryAction?: "install-and-restart" | "retry-check";
+				primaryAction?: "install-and-restart" | "retry-check" | "open-download";
 			} | null,
 		) => void,
 	) => {
@@ -974,7 +975,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 				totalBytes?: number;
 				remainingBytes?: number;
 				bytesPerSecond?: number;
-				primaryAction?: "install-and-restart" | "retry-check";
+				primaryAction?: "install-and-restart" | "retry-check" | "open-download";
 			} | null,
 		) => callback(payload);
 		ipcRenderer.on("update-toast-state", listener);

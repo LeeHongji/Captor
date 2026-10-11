@@ -91,7 +91,9 @@
 		"notNow": "Niet nu",
 		"updateNow": "Nu updaten",
 		"restartToUpdate": "Opnieuw starten om te updaten",
-		"tryAgain": "Opnieuw proberen"
+		"tryAgain": "Opnieuw proberen",
+		"downloadInstaller": "Installatiebestand downloaden",
+		"manualInstructions": "Updates worden handmatig geïnstalleerd. Sla je werk op en sluit Captor voordat je de app vervangt."
 	},
 	"prompter": {
 		"prepare": "Prepare narration",

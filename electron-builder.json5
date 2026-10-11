@@ -62,7 +62,7 @@
       }
     ],
     "icon": "icons/icons/mac/icon.icns",
-    "artifactName": "${productName}-${arch}.${ext}",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
     "extendInfo": {
       "NSAudioCaptureUsageDescription": "Captor needs audio capture permission to record system audio.",
       "NSCameraUsageDescription": "Captor needs camera access to record webcam video.",

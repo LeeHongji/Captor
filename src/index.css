@@ -20,7 +20,7 @@
 	font-display: swap;
 }
 
-/* Layout aliases only. All component colors and styling come from HeroUI's default theme. */
+/* Captor uses HeroUI semantic tokens with the Hennis violet palette. */
 @theme inline {
 	--font-sans: var(--app-font-sans);
 	--color-primary: var(--accent);
@@ -49,11 +49,66 @@
 }
 
 @layer base {
+	:root,
+	.light,
+	[data-theme="light"] {
+		--background: #f8f6fc;
+		--foreground: #191321;
+		--surface: #ffffff;
+		--surface-secondary: #f3eef9;
+		--surface-tertiary: #eae2f3;
+		--overlay: #ffffff;
+		--muted: #6b607a;
+		--accent: #4e3282;
+		--accent-foreground: #ffffff;
+		--accent-soft: #eee6f6;
+		--accent-soft-foreground: #4e3282;
+		--accent-soft-hover: #e5d9f0;
+		--default: #f0eaf7;
+		--default-foreground: #191321;
+		--field-background: #ffffff;
+		--field-foreground: #191321;
+		--field-border: #d9cfe5;
+		--border: #e3daed;
+		--separator: #eae3f2;
+		--focus: #4e3282;
+		--captor-accent-rgb: 78, 50, 130;
+		--surface-shadow: 0 2px 8px rgb(78 50 130 / 5%), 0 0 1px rgb(78 50 130 / 12%);
+		--overlay-shadow: 0 12px 32px rgb(25 19 33 / 12%), 0 2px 8px rgb(78 50 130 / 8%);
+		--tooltip-delay: 450ms;
+		--tooltip-close-delay: 100ms;
+	}
+	.dark,
+	[data-theme="dark"] {
+		--background: #15111c;
+		--foreground: #f5f1fa;
+		--surface: #211b2b;
+		--surface-secondary: #2c2339;
+		--surface-tertiary: #382d48;
+		--overlay: #292133;
+		--muted: #b7a9c9;
+		--accent: #b69cd2;
+		--accent-foreground: #191321;
+		--accent-soft: #38294b;
+		--accent-soft-foreground: #e5d6f4;
+		--accent-soft-hover: #443259;
+		--default: #352942;
+		--default-foreground: #f5f1fa;
+		--field-background: #211b2b;
+		--field-foreground: #f5f1fa;
+		--field-border: #594769;
+		--border: #44364f;
+		--separator: #392e46;
+		--focus: #b69cd2;
+		--captor-accent-rgb: 182, 156, 210;
+	}
+
 	:root {
 		--app-font-sans:
-			"DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			"DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+			sans-serif;
 		--brand-accent: var(--accent);
-		--brand-accent-rgb: 0, 111, 238;
+		--brand-accent-rgb: var(--captor-accent-rgb);
 		--primary: var(--accent);
 		--primary-foreground: var(--accent-foreground);
 		--muted-foreground: var(--muted);
@@ -140,15 +195,15 @@
    Do not outline dialogs or other programmatically focused containers. */
 :root,
 .dark {
- --focus: var(--accent);
+	--focus: var(--accent);
 }
 :focus-visible:not([data-rac]):not([role="dialog"]):not([role="alertdialog"]):not([tabindex="-1"]) {
- outline: 2px solid var(--focus);
- outline-offset: 2px;
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
 }
 ::selection {
- background: var(--accent-soft);
- color: var(--foreground);
+	background: var(--accent-soft);
+	color: var(--foreground);
 }
 
 @container (max-width: 110px) {
@@ -189,26 +244,70 @@
 }
 
 .dashboard-surface .folder-row > button {
-  background: transparent;
+	background: transparent;
 }
 
 .inline-project-name {
- background: transparent;
- border: 0;
- border-radius: 0;
- box-shadow: none;
- outline: none;
- padding: 0;
- color: inherit;
+	background: transparent;
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+	outline: none;
+	padding: 0;
+	color: inherit;
 }
-.inline-project-name:focus { outline: none; box-shadow: none; }
-.inline-project-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.inline-project-name:focus {
+	outline: none;
+	box-shadow: none;
+}
+.inline-project-name:focus-visible {
+	outline: 2px solid var(--focus);
+	outline-offset: 2px;
+}
 
 .dashboard-shell {
- background-color: color-mix(in srgb, var(--background) 92%, var(--foreground) 8%);
+	background-color: color-mix(in srgb, var(--background) 92%, var(--foreground) 8%);
 }
 
-.dark .dashboard-shell { background-color: var(--background); }
-.dark .dashboard-shell > .card { background-color: color-mix(in srgb, var(--background) 92%, var(--foreground) 8%); }
+.dark .dashboard-shell {
+	background-color: var(--background);
+}
+.dark .dashboard-shell > .card {
+	background-color: color-mix(in srgb, var(--background) 92%, var(--foreground) 8%);
+}
 
-.dashboard-settings .custom-scrollbar { padding-inline: 0; scrollbar-gutter: auto !important; }
+.dashboard-settings .custom-scrollbar {
+	padding-inline: 0;
+	scrollbar-gutter: auto !important;
+}
+
+/* UI-only feedback: media motion and timeline positioning keep their own clocks. */
+.button {
+	transition-duration: 140ms;
+	transition-property: background-color, color, border-color, box-shadow, opacity;
+}
+.button:active:not(:disabled):not([aria-disabled="true"]) {
+	transition-duration: 0ms;
+}
+.button svg {
+	flex-shrink: 0;
+}
+::selection {
+	background: var(--accent-soft);
+	color: var(--foreground);
+}
+@media (prefers-reduced-motion: reduce) {
+	.button,
+	.popover,
+	.modal,
+	.dropdown,
+	.tooltip {
+		animation: none;
+		transition: none;
+	}
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+	.launch-theme {
+		--launch-bar-bg: var(--surface);
+	}
+}

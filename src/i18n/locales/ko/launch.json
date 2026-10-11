@@ -91,7 +91,9 @@
 		"notNow": "나중에",
 		"updateNow": "지금 업데이트",
 		"restartToUpdate": "다시 시작하여 업데이트",
-		"tryAgain": "다시 시도"
+		"tryAgain": "다시 시도",
+		"downloadInstaller": "설치 파일 다운로드",
+		"manualInstructions": "업데이트는 수동으로 설치합니다. 앱을 교체하기 전에 작업을 저장하고 Captor를 종료하세요."
 	},
 	"prompter": {
 		"prepare": "Prepare narration",

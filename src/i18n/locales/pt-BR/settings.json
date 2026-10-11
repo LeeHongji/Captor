@@ -257,6 +257,14 @@
 		"experimentalDescription": "Você ativou as atualizações experimentais, então pode escolher testar a atualização mais recente do Captor antes que ela fique amplamente disponível.",
 		"title": "Atualizações",
 		"experimental": "Atualizações experimentais",
-		"saveFailed": "Falha ao alterar o canal de atualização."
+		"saveFailed": "Falha ao alterar o canal de atualização.",
+		"manualDescription": "As atualizações são instaladas manualmente. Salve seu trabalho e feche o Captor antes de substituir o aplicativo.",
+		"checkNow": "Verificar atualizações",
+		"browseReleases": "Downloads e versões",
+		"checking": "Verificando…",
+		"upToDate": "Não há um instalador mais recente.",
+		"checkFailed": "Não foi possível verificar atualizações. Tente novamente ou consulte as versões.",
+		"openFailed": "Não foi possível abrir a página de download.",
+		"available": "Nova versão disponível"
 	}
 }

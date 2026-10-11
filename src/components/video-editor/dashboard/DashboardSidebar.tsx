@@ -68,7 +68,10 @@ export function DashboardSidebar({
 						aria-current={section === "projects" ? "page" : undefined}
 						onClick={() => setSection("projects")}
 					>
-						<House weight="fill" className="size-[18px]" />
+						<House
+							weight={section === "projects" ? "fill" : "regular"}
+							className="size-[18px]"
+						/>
 						Home
 					</Button>
 					<Button

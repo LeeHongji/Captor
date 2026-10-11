@@ -257,6 +257,14 @@
 		"experimentalDescription": "Je hebt experimentele updates ingeschakeld, dus je kunt de nieuwste update van Captor testen voordat die breed beschikbaar is.",
 		"title": "Updates",
 		"experimental": "Experimentele updates",
-		"saveFailed": "Kan het updatekanaal niet wijzigen."
+		"saveFailed": "Kan het updatekanaal niet wijzigen.",
+		"manualDescription": "Updates worden handmatig geïnstalleerd. Sla je werk op en sluit Captor voordat je de app vervangt.",
+		"checkNow": "Controleren op updates",
+		"browseReleases": "Downloads en versies",
+		"checking": "Controleren…",
+		"upToDate": "Er is geen nieuwer installatiebestand.",
+		"checkFailed": "Updates konden niet worden gecontroleerd. Probeer opnieuw of bekijk de versies.",
+		"openFailed": "De downloadpagina kon niet worden geopend.",
+		"available": "Nieuwe versie beschikbaar"
 	}
 }

@@ -257,6 +257,14 @@
 		"experimentalDescription": "Sie haben experimentelle Updates aktiviert und können daher das neueste Update von Captor testen, bevor es allgemein verfügbar ist.",
 		"title": "Updates",
 		"experimental": "Experimentelle Updates",
-		"saveFailed": "Update-Kanal konnte nicht geändert werden."
+		"saveFailed": "Update-Kanal konnte nicht geändert werden.",
+		"manualDescription": "Updates werden manuell installiert. Speichere deine Arbeit und beende Captor, bevor du die App ersetzt.",
+		"checkNow": "Nach Updates suchen",
+		"browseReleases": "Downloads und Versionen",
+		"checking": "Wird geprüft…",
+		"upToDate": "Kein neueres Installationspaket verfügbar.",
+		"checkFailed": "Updates konnten nicht geprüft werden. Versuche es erneut oder öffne die Versionsseite.",
+		"openFailed": "Die Downloadseite konnte nicht geöffnet werden.",
+		"available": "Neue Version verfügbar"
 	}
 }

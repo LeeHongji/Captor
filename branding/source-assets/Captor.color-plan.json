@@ -1,0 +1,28 @@
+{
+  "mode": "B",
+  "labels": [],
+  "background": "transparent",
+  "dominant": "#8E6CBB",
+  "supporting": [
+    "#4E3282",
+    "#B69CD2"
+  ],
+  "accents": [
+    "#F8C7CE"
+  ],
+  "balance": {
+    "dominant": 0.6,
+    "supporting": 0.3,
+    "accent": 0.1
+  },
+  "focal_surface": "recording dot inside the C capture frame",
+  "surface_colors": {
+    "capture_frame": "#8E6CBB",
+    "tile_edge": "#B69CD2",
+    "record_outline": "#4E3282",
+    "record_dot": "#F8C7CE",
+    "tile": "#FFFFFF"
+  },
+  "label_pairs": [],
+  "palette_id": "hennis-card-v1"
+}

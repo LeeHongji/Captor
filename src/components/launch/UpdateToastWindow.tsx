@@ -21,7 +21,7 @@ export type UpdateToastPayload = {
 	transferredBytes?: number;
 	totalBytes?: number;
 	bytesPerSecond?: number;
-	primaryAction?: "install-and-restart" | "retry-check";
+	primaryAction?: "install-and-restart" | "retry-check" | "open-download";
 };
 
 function formatBytes(value: number | undefined) {
@@ -58,6 +58,11 @@ function getTitle(payload: UpdateToastPayload, t: Translate) {
 }
 
 function getDetail(payload: UpdateToastPayload, t: Translate) {
+	if (payload.primaryAction === "open-download")
+		return t(
+			"launch.updateToast.manualInstructions",
+			"Download the installer from GitHub. Save your work and quit Captor before replacing the app.",
+		);
 	if (payload.phase === "available" && payload.isExperimental) {
 		return t(
 			"launch.updateToast.experimentalDescription",
@@ -69,6 +74,8 @@ function getDetail(payload: UpdateToastPayload, t: Translate) {
 }
 
 function getPrimaryLabel(payload: UpdateToastPayload, t: Translate) {
+	if (payload.primaryAction === "open-download")
+		return t("launch.updateToast.downloadInstaller", "Download installer");
 	if (payload.primaryAction === "retry-check") {
 		return t("launch.updateToast.tryAgain", "Try again");
 	}
@@ -95,6 +102,8 @@ export function UpdateToastWindow({
 }: {
 	payload?: UpdateToastPayload;
 } = {}) {
+	const [downloadError, setDownloadError] = useState(false);
+	const [openingDownload, setOpeningDownload] = useState(false);
 	const [livePayload, setPayload] = useState<UpdateToastPayload | null>(null);
 	const payload = suppliedPayload ?? livePayload;
 	const { t } = useI18n();
@@ -136,6 +145,20 @@ export function UpdateToastWindow({
 
 	const handlePrimaryAction = async () => {
 		if (payload.phase === "downloading") return;
+		if (payload.primaryAction === "open-download") {
+			setDownloadError(false);
+			setOpeningDownload(true);
+			try {
+				const result = await window.electronAPI.openUpdateDownloadPage();
+				if (result.success) await window.electronAPI.dismissUpdateToast();
+				else setDownloadError(true);
+			} catch {
+				setDownloadError(true);
+			} finally {
+				setOpeningDownload(false);
+			}
+			return;
+		}
 
 		if (payload.primaryAction === "retry-check") {
 			await window.electronAPI.checkForAppUpdates();
@@ -181,6 +204,11 @@ export function UpdateToastWindow({
 						) : null}
 					</div>
 					<p>{getDetail(payload, t)}</p>
+					{downloadError && (
+						<p role="alert">
+							{t("settings.updates.openFailed", "Could not open the download page.")}
+						</p>
+					)}
 
 					{payload.phase === "downloading" ? (
 						<div className={styles.progressBlock}>
@@ -204,7 +232,12 @@ export function UpdateToastWindow({
 							>
 								{t("launch.updateToast.notNow", "Not now")}
 							</Button>
-							<Button type="button" size="sm" onClick={handlePrimaryAction}>
+							<Button
+								type="button"
+								size="sm"
+								disabled={openingDownload}
+								onClick={handlePrimaryAction}
+							>
 								{getPrimaryLabel(payload, t)}
 							</Button>
 						</div>

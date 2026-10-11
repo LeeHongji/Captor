@@ -104,7 +104,7 @@ export function KeyboardShortcutsDialog({
 			<DialogContent className="max-w-lg">
 				<DialogHeader>
 					<DialogTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
-						<Keyboard className="h-5 w-5 text-[#2563EB]" />{" "}
+						<Keyboard className="h-5 w-5 text-primary" />{" "}
 						{t("keyboardShortcuts.title")}
 					</DialogTitle>
 					<DialogDescription className="text-muted-foreground">
@@ -124,7 +124,7 @@ export function KeyboardShortcutsDialog({
 								<span className="text-muted-foreground">
 									{SHORTCUT_LABELS[action]}
 								</span>
-								<kbd className="rounded border border-foreground/10 bg-foreground/10 px-2 py-1 font-mono text-[#2563EB]">
+								<kbd className="rounded border border-foreground/10 bg-foreground/10 px-2 py-1 font-mono text-primary">
 									{formatBinding(shortcuts[action], isMac)}
 								</kbd>
 							</div>
@@ -134,7 +134,7 @@ export function KeyboardShortcutsDialog({
 								<p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
 									{t("keyboardShortcuts.panTimeline")}
 								</p>
-								<kbd className="mt-2 inline-flex rounded border border-foreground/10 bg-foreground/10 px-2 py-1 font-mono text-[#2563EB]">
+								<kbd className="mt-2 inline-flex rounded border border-foreground/10 bg-foreground/10 px-2 py-1 font-mono text-primary">
 									{scrollLabels.pan}
 								</kbd>
 							</div>
@@ -142,7 +142,7 @@ export function KeyboardShortcutsDialog({
 								<p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
 									{t("keyboardShortcuts.zoomTimeline")}
 								</p>
-								<kbd className="mt-2 inline-flex rounded border border-foreground/10 bg-foreground/10 px-2 py-1 font-mono text-[#2563EB]">
+								<kbd className="mt-2 inline-flex rounded border border-foreground/10 bg-foreground/10 px-2 py-1 font-mono text-primary">
 									{scrollLabels.zoom}
 								</kbd>
 							</div>
@@ -150,7 +150,7 @@ export function KeyboardShortcutsDialog({
 								<p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
 									{t("keyboardShortcuts.cycleAnnotations")}
 								</p>
-								<kbd className="mt-2 inline-flex rounded border border-foreground/10 bg-foreground/10 px-2 py-1 font-mono text-[#2563EB]">
+								<kbd className="mt-2 inline-flex rounded border border-foreground/10 bg-foreground/10 px-2 py-1 font-mono text-primary">
 									{t("keyboardShortcuts.tab")}
 								</kbd>
 							</div>

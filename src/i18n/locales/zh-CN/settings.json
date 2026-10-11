@@ -257,6 +257,14 @@
 		"experimentalDescription": "你已选择接收实验性更新，因此可以在 Captor 最新更新广泛发布之前选择先行测试。",
 		"title": "更新",
 		"experimental": "实验性更新",
-		"saveFailed": "无法更改更新频道。"
+		"saveFailed": "无法更改更新频道。",
+		"manualDescription": "此版本需要手动更新。替换应用前，请保存工作并退出 Captor。",
+		"checkNow": "检查更新",
+		"browseReleases": "下载与发行版本",
+		"checking": "检查中…",
+		"upToDate": "暂无更新的安装版本。",
+		"checkFailed": "无法检查更新，请重试或前往发行页面。",
+		"openFailed": "无法打开发行下载页面。",
+		"available": "发现新版本"
 	}
 }

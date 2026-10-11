@@ -1,0 +1,156 @@
+name: Manual macOS Release Candidate
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      publish:
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: node node_modules/ffmpeg-static/install.js
+      - run: npm run typecheck && npm run lint && npm test && npm run i18n:check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui -- tests/ui/brand-release.spec.ts tests/ui/desktop-windows.spec.ts tests/ui/teleprompter.spec.ts tests/ui/hud-layout.spec.ts tests/ui/export-error-report.spec.ts tests/ui/timeline-presentation.spec.ts --workers=2
+
+  package:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: x64
+            runner: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate version and distribution lane
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; const p=JSON.parse(fs.readFileSync("package.json")); if (!/^v\d+\.\d+\.\d+(?:-beta\.\d+)?$/.test(process.env.RELEASE_TAG) || process.env.RELEASE_TAG !== `v${p.version}` || p.captorDistribution !== "manual") throw Error("Tag/version/manual distribution mismatch");'
+      - run: npm ci --ignore-scripts
+      - run: node node_modules/ffmpeg-static/install.js
+      - run: npx electron-builder install-app-deps
+      - name: Build installer with ad-hoc signatures
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm run build:platform-native-helpers
+          npx tsc
+          npx vite build
+          npm run normalize:electron-main-cjs
+          npm run smoke:electron-main-cjs
+          npx electron-builder --config electron-builder.manual.json5 --mac dir dmg zip --${{ matrix.arch }} --publish never
+      - name: Inspect packaged binaries
+        env:
+          PACKAGED_SMOKE_ARCH_TAGS: darwin-${{ matrix.arch }}
+        run: npm run smoke:packaged-binaries
+      - name: Verify manual distribution artifacts
+        run: node scripts/verify-manual-macos.mjs ${{ matrix.arch }}
+      - name: Verify real packaged export
+        run: node scripts/smoke-manual-export.mjs ${{ matrix.arch }}
+      - name: Record build source
+        run: |
+          git rev-parse HEAD > release/source-sha.txt
+          npm run checksums:release -- SHA256SUMS-macos-${{ matrix.arch }}.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: manual-macos-${{ matrix.arch }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/SHA256SUMS*.txt
+            release/source-sha.txt
+            release/manual-verification-*.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    if: inputs.publish
+    needs: [quality, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: manual-macos-*
+          path: .tmp/candidates
+      - name: Verify candidate identity and checksums
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const pkg = JSON.parse(fs.readFileSync('package.json'));
+          if (process.env.RELEASE_TAG !== `v${pkg.version}` || !/^v\d+\.\d+\.\d+(?:-beta\.\d+)?$/.test(process.env.RELEASE_TAG)) throw Error('Version mismatch');
+          fs.mkdirSync('.tmp/public-release', {recursive:true});
+          const sums = [];
+          for (const arch of ['arm64','x64']) {
+            const dir = `.tmp/candidates/manual-macos-${arch}`;
+            if (fs.readFileSync(`${dir}/source-sha.txt`,'utf8').trim() !== process.env.GITHUB_SHA) throw Error('Source SHA mismatch');
+            const report = JSON.parse(fs.readFileSync(`${dir}/manual-verification-${arch}.json`));
+            if (report.version !== pkg.version || report.arch !== arch || !report.nativeAddonsExecuted || report.lane !== 'manual-ad-hoc-not-notarized') throw Error('Missing native verification');
+            const name = `Captor-${pkg.version}-${arch}.dmg`;
+            const bytes = fs.readFileSync(`${dir}/${name}`);
+            const hash = crypto.createHash('sha256').update(bytes).digest('hex');
+            if (!fs.readFileSync(`${dir}/SHA256SUMS-macos-${arch}.txt`,'utf8').split('\n').includes(`${hash}  ${name}`)) throw Error('Checksum mismatch');
+            fs.writeFileSync(`.tmp/public-release/${name}`,bytes);
+            sums.push(`${hash}  ${name}`);
+          }
+          fs.writeFileSync('.tmp/public-release/SHA256SUMS.txt',sums.join('\n')+'\n');
+          const notes = fs.readFileSync(`docs/releases/${pkg.version}.md`,'utf8');
+          if (!notes.includes('<!-- captor-distribution: manual -->')) throw Error('Missing manual release marker');
+          fs.writeFileSync('.tmp/public-release/notes.md',notes);
+          JS
+      - name: Publish complete manual installation release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo 'Release already exists. Refusing to replace published or draft assets.'
+            exit 1
+          fi
+          EXTRA=()
+          if [[ "$RELEASE_TAG" == *-beta.* ]]; then EXTRA+=(--prerelease); fi
+          gh api --method POST "repos/$GH_REPO/git/refs" -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$GITHUB_SHA" > .tmp/created-tag.json
+          gh release create "$RELEASE_TAG" --verify-tag --draft --title "$RELEASE_TAG" --notes-file .tmp/public-release/notes.md "${EXTRA[@]}"
+          gh release upload "$RELEASE_TAG" .tmp/public-release/*.dmg .tmp/public-release/SHA256SUMS.txt
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets | length' > .tmp/asset-count
+          test "$(cat .tmp/asset-count)" = 3
+          gh release edit "$RELEASE_TAG" --draft=false

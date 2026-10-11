@@ -257,6 +257,14 @@
 		"experimentalDescription": "你已選擇接收實驗性更新，因此可以在 Captor 最新更新廣泛推出之前選擇先行測試。",
 		"title": "更新",
 		"experimental": "實驗性更新",
-		"saveFailed": "無法變更更新頻道。"
+		"saveFailed": "無法變更更新頻道。",
+		"manualDescription": "此版本需要手動更新。替換應用程式前，請儲存工作並結束 Captor。",
+		"checkNow": "檢查更新",
+		"browseReleases": "下載與發行版本",
+		"checking": "檢查中…",
+		"upToDate": "暫無更新的安裝版本。",
+		"checkFailed": "無法檢查更新，請重試或前往發行頁面。",
+		"openFailed": "無法開啟發行下載頁面。",
+		"available": "發現新版本"
 	}
 }

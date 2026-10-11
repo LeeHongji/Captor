@@ -257,6 +257,14 @@
 		"experimentalDescription": "Vous avez activé les mises à jour expérimentales, vous pouvez donc tester la dernière mise à jour de Captor avant sa disponibilité générale.",
 		"title": "Mises à jour",
 		"experimental": "Mises à jour expérimentales",
-		"saveFailed": "Impossible de changer le canal de mise à jour."
+		"saveFailed": "Impossible de changer le canal de mise à jour.",
+		"manualDescription": "Les mises à jour sont manuelles. Enregistrez votre travail et quittez Captor avant de remplacer l’application.",
+		"checkNow": "Rechercher des mises à jour",
+		"browseReleases": "Téléchargements et versions",
+		"checking": "Recherche…",
+		"upToDate": "Aucun programme d’installation plus récent.",
+		"checkFailed": "Impossible de rechercher des mises à jour. Réessayez ou consultez les versions.",
+		"openFailed": "Impossible d’ouvrir la page de téléchargement.",
+		"available": "Nouvelle version disponible"
 	}
 }
