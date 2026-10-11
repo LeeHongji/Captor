@@ -6,7 +6,7 @@ The current draft and display settings are stored in `recording-draft.json` unde
 
 ## Prompt window
 
-The separate, draggable prompt window displays Chinese characters and Latin words at their original text offsets. Click a word or use the previous/next controls to re-anchor. Only a bounded slice of a long script is rendered. Font size, width and background opacity are independent of capture exclusion. Text and capture visibility are locked during recording. Closing the prompt hides it; its native window ID stays stable for the capture filter.
+The separate, draggable prompt window displays Chinese characters and Latin words at their original text offsets. Click a word or use the previous/next controls to re-anchor. The complete script stays in normal text flow, split into read, current and upcoming text, so advancing the highlight does not rewrap the script. Same-line voice updates preserve the current scroll animation; after a manual scroll, the next cursor update re-centers the word. Explicit word selection and previous/next controls always re-anchor. Font size, width and background opacity are independent of capture exclusion. Text and capture visibility are locked during recording. Closing the prompt hides it; its native window ID stays stable for the capture filter.
 
 Hide-from-recording defaults on. Windows uses content protection. Captor's macOS ScreenCaptureKit filter preserves the existing whole-process exclusion when the HUD is hidden, with an exception when the prompt should be captured; otherwise it excludes the prompt window alone. This applies to Captor recordings, not every third-party capture application. Linux exposes ordinary prompting without promising capture exclusion.
 

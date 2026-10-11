@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useLayoutEffect, useMemo, useRef, type CSSProperties, type MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, XIcon } from "@/components/ui/icons";
 import { useScopedT } from "@/contexts/I18nContext";
@@ -10,18 +10,74 @@ export default function PrompterWindow() {
 	const state = usePrompterState();
 	const tokens = useMemo(() => tokenizeScript(state.draft.text), [state.draft.text]);
 	const current = tokens.findIndex((token) => token.end > state.cursor);
-	const visibleStart = Math.max(0, (current < 0 ? tokens.length : current) - 100);
-	const visibleTokens = tokens.slice(visibleStart, visibleStart + 600);
-	const active = useRef<HTMLButtonElement>(null);
+	const word = tokens[current];
+	const start = word?.start ?? state.draft.text.length;
+	const end = word?.end ?? start;
+	const active = useRef<HTMLSpanElement>(null);
+	const scroller = useRef<HTMLDivElement>(null);
+	const scrollTarget = useRef<{ top: number; cursor: number; interrupted: boolean } | null>(null);
+	const interruptScroll = () => {
+		if (scrollTarget.current) scrollTarget.current.interrupted = true;
+	};
 	const move = (direction: number) => {
 		const index = current < 0 ? tokens.length : current;
+		scrollTarget.current = null;
 		void window.teleprompterAPI?.setCursor(
 			tokens[Math.max(0, Math.min(tokens.length - 1, index + direction))]?.start ?? 0,
 		);
 	};
-	useEffect(() => {
-		if (current >= 0) active.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-	}, [current]);
+	const selectWord = (event: MouseEvent<HTMLDivElement>) => {
+		const caret = document.caretRangeFromPoint(event.clientX, event.clientY);
+		const node = caret?.startContainer;
+		const segment = node?.parentElement;
+		if (!caret || node?.nodeType !== Node.TEXT_NODE || !segment?.dataset.scriptStart) return;
+		const index =
+			caret.startOffset - (event.clientX < caret.getBoundingClientRect().left ? 1 : 0);
+		if (index < 0 || index >= (node.textContent?.length ?? 0)) return;
+		// A caret is the nearest insertion point, even when the click is in padding.
+		caret.setStart(node, index);
+		caret.setEnd(node, index + 1);
+		const rect = caret.getBoundingClientRect();
+		if (
+			event.clientX < rect.left ||
+			event.clientX > rect.right ||
+			event.clientY < rect.top ||
+			event.clientY > rect.bottom
+		)
+			return;
+		const offset = Number(segment.dataset.scriptStart) + index;
+		const token = tokens.find((token) => token.start <= offset && token.end > offset);
+		if (token) {
+			scrollTarget.current = null;
+			void window.teleprompterAPI?.setCursor(token.start);
+		}
+	};
+	useLayoutEffect(() => {
+		const container = scroller.current;
+		const element = active.current;
+		if (!container || !element) return;
+		const rect = element.getBoundingClientRect();
+		const top = container.scrollTop + rect.top - container.getBoundingClientRect().top;
+		const target = Math.round(
+			Math.max(
+				0,
+				Math.min(
+					container.scrollHeight - container.clientHeight,
+					top - (container.clientHeight - rect.height) / 2,
+				),
+			),
+		);
+		// Same-line speech preserves the animation unless a user scroll interrupted it.
+		const previous = scrollTarget.current;
+		if (
+			!previous ||
+			target !== previous.top ||
+			(previous.interrupted && state.cursor !== previous.cursor)
+		) {
+			scrollTarget.current = { top: target, cursor: state.cursor, interrupted: false };
+			container.scrollTo({ top: target, behavior: "smooth" });
+		} else previous.cursor = state.cursor;
+	});
 	return (
 		<section
 			aria-label={t("prompter.window", "Teleprompter")}
@@ -71,37 +127,33 @@ export default function PrompterWindow() {
 				</p>
 			)}
 			<div
+				ref={scroller}
 				className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-6 py-20 leading-relaxed"
-				style={{ fontSize: state.draft.fontSize }}
+				style={{
+					fontSize: state.draft.fontSize,
+					whiteSpace: "pre-wrap",
+					overflowAnchor: "none",
+				}}
+				onClick={selectWord}
+				onWheel={interruptScroll}
+				onTouchMove={interruptScroll}
+				onPointerDown={interruptScroll}
 			>
-				{visibleTokens.map((token, localIndex) => {
-					const index = visibleStart + localIndex;
-					return (
-						<span key={token.start}>
-							{state.draft.text
-								.slice(index ? tokens[index - 1].end : 0, token.start)
-								.split("\n")
-								.map((line, lineIndex) => (
-									<span key={lineIndex}>
-										{lineIndex > 0 && <br />}
-										{line}
-									</span>
-								))}
-							<button
-								type="button"
-								tabIndex={-1}
-								ref={index === current ? active : undefined}
-								data-current-word={index === current ? "true" : undefined}
-								className={`rounded-sm text-left transition-colors ${index === current ? "bg-amber-300/20 text-amber-200" : token.end <= state.cursor ? "text-white/35" : "text-white"}`}
-								onClick={() => void window.teleprompterAPI?.setCursor(token.start)}
-							>
-								{state.draft.text.slice(token.start, token.end)}
-							</button>
-						</span>
-					);
-				})}
-				{visibleStart + visibleTokens.length === tokens.length &&
-					state.draft.text.slice(tokens[tokens.length - 1]?.end ?? 0)}
+				{/* Keep the whole text in normal flow: trimming its prefix rewraps every line. */}
+				<span data-script-start="0" className="text-white/35">
+					{state.draft.text.slice(0, start)}
+				</span>
+				{word && (
+					<span
+						ref={active}
+						data-script-start={start}
+						data-current-word="true"
+						className="rounded-sm bg-amber-300/20 text-amber-200"
+					>
+						{state.draft.text.slice(start, end)}
+					</span>
+				)}
+				<span data-script-start={end}>{state.draft.text.slice(end)}</span>
 			</div>
 		</section>
 	);
