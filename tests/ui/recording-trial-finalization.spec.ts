@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { installDesktopBridge, installDesktopBridgeOverrides } from "./bridge";
 
-for (const companion of ["camera", "microphone", "browser-camera"] as const) {
+for (const companion of ["camera", "microphone", "browser-camera", "native-microphone"] as const) {
 	test(`${companion === "browser-camera" ? "browser" : "native"} trial waits for ${companion === "browser-camera" ? "camera" : companion} persistence before checking completion`, async ({
 		page,
 	}) => {
@@ -17,14 +17,25 @@ for (const companion of ["camera", "microphone", "browser-camera"] as const) {
 				window.addEventListener("test-release-companion", () => release());
 				let webcamPath: string | null = null;
 				let microphoneSaved = false;
+				let microphoneVerified = false;
 				const choices = {
-					camera: companion !== "microphone",
-					microphone: companion === "microphone",
+					camera: companion !== "microphone" && companion !== "native-microphone",
+					microphone: companion === "microphone" || companion === "native-microphone",
 					systemAudio: false,
 					voiceFollow: false,
 				};
 				Object.assign(window.electronAPI, {
 					getCountdownDelay: async () => ({ success: true, delay: 0 }),
+					finalizeRecordedAudio: async (_path: string, microphoneExpected: boolean) => {
+						microphoneVerified = microphoneExpected;
+						if (companion === "native-microphone") {
+							document.documentElement.dataset.companionSaving = "true";
+							await pending;
+							microphoneSaved = true;
+						}
+						document.documentElement.dataset.microphoneExpected = String(microphoneExpected);
+						return { success: true };
+					},
 					getRecordingPreferences: async () => ({
 						success: true,
 						webcamEnabled: choices.camera,
@@ -36,7 +47,7 @@ for (const companion of ["camera", "microphone", "browser-camera"] as const) {
 							? undefined
 							: async () => ({
 									success: true,
-									microphoneFallbackRequired: choices.microphone,
+									microphoneFallbackRequired: companion === "microphone",
 								}),
 					stopNativeScreenRecording: async () => ({
 						success: true,
@@ -91,7 +102,7 @@ for (const companion of ["camera", "microphone", "browser-camera"] as const) {
 								Number(document.documentElement.dataset.finishCalls || "0") + 1,
 							);
 							document.documentElement.dataset.trialComplete = String(
-								choices.camera ? !!webcamPath : microphoneSaved,
+								choices.camera ? !!webcamPath : microphoneSaved && microphoneVerified,
 							);
 						},
 					},
@@ -161,6 +172,9 @@ for (const companion of ["camera", "microphone", "browser-camera"] as const) {
 		await expect(page.locator("html")).toHaveAttribute("data-finish-calls", "0");
 		await page.evaluate(() => window.dispatchEvent(new Event("test-release-companion")));
 		await expect(page.locator("html")).toHaveAttribute("data-finish-calls", "1");
+		if (companion === "microphone" || companion === "native-microphone") {
+			await expect(page.locator("html")).toHaveAttribute("data-microphone-expected", "true");
+		}
 		await expect(page.locator("html")).toHaveAttribute("data-trial-complete", "true");
 		await expect(page.locator("html")).toHaveAttribute("data-editor-opened", "true");
 		await expect(page.locator("html")).toHaveAttribute("data-hud-closed", "true");

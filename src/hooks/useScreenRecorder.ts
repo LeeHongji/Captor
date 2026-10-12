@@ -386,6 +386,8 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	const [countdownActive, setCountdownActive] = useState(false);
 	const [isMacOS, setIsMacOS] = useState(false);
 	const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
+	// The stop handler is retained in a ref; read the configuration captured for this take.
+	const captureMicrophoneExpected = useRef(false);
 	const [microphoneDeviceId, setMicrophoneDeviceId] = useState<string | undefined>(undefined);
 	const [systemAudioEnabled, setSystemAudioEnabled] = useState(false);
 	const [webcamEnabled, setWebcamEnabled] = useState(false);
@@ -800,7 +802,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			if ((await window.electronAPI.getPlatform()) !== "darwin") return;
 			const result = await window.electronAPI.finalizeRecordedAudio(
 				videoPath,
-				microphoneEnabled,
+				captureMicrophoneExpected.current,
 			);
 			if (!result.success)
 				throw Error(
@@ -808,7 +810,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 						"The MP4 audio could not be finalized. Your recording files have been preserved.",
 				);
 		},
-		[microphoneEnabled],
+		[],
 	);
 
 	const closeMicFallbackPauseInterval = useCallback((now = performance.now()) => {
@@ -1678,6 +1680,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				await stopWebcamRecorder();
 				return;
 			}
+			captureMicrophoneExpected.current = microphoneEnabled;
 			if (captureSharedMicrophone.current) {
 				await window.teleprompterAPI?.recordingPhase("preparing");
 				try {
