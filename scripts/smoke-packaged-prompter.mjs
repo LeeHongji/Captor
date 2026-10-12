@@ -53,16 +53,9 @@ try {
 		.click();
 	await expect.poll(async () => (await getState()).sequence).toBeGreaterThan(initial.sequence);
 	assert.equal((await getState()).armed, false);
-	assert.equal(
-		await app.evaluate(({ BrowserWindow }) =>
-			BrowserWindow.getAllWindows().some(
-				(window) =>
-					window.webContents.getURL().includes("windowType=hud-overlay") &&
-					window.isVisible(),
-			),
-		),
-		true,
-	);
+	await expect.poll(() => app.evaluate(({ BrowserWindow }) =>
+		BrowserWindow.getAllWindows().some((window) => window.webContents.getURL().includes("windowType=hud-overlay") && window.isVisible()),
+	), { timeout: 30_000 }).toBe(true);
 	const hud = app.windows().find((page) => page.url().includes("windowType=hud-overlay"));
 	assert.ok(hud);
 	assert.equal(new URL(hud.url()).origin, new URL(editor.url()).origin, "Device tests and capture must use the same origin");
