@@ -68,6 +68,28 @@ vi.mock("./muxer", () => ({
 }));
 
 describe("ModernVideoExporter native fallback routing", () => {
+	it("refuses a complete-mix fallback that would discard a saved microphone mute", async () => {
+		const exporter = new ModernVideoExporter({
+			videoUrl: "file:///recording.mp4",
+			width: 1920,
+			height: 1080,
+			frameRate: 30,
+			bitrate: 8_000_000,
+			wallpaper: "#000000",
+			sourceAudioFallbackPaths: ["/recording.mp4"],
+			sourceAudioTrackSettings: { mic: { volume: 0, normalize: false } },
+		} as never);
+		const initialize = vi
+			.spyOn(
+				exporter as unknown as { initializeEncoder: () => Promise<unknown> },
+				"initializeEncoder",
+			)
+			.mockResolvedValue({ hardwareAcceleration: "prefer-hardware" });
+		const result = await exporter.export();
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("original audio tracks");
+		expect(initialize).not.toHaveBeenCalled();
+	});
 	let ModernVideoExporter: typeof ModernVideoExporterClass;
 
 	beforeAll(async () => {

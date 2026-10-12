@@ -16,6 +16,7 @@ export const RECORDING_AUDIO_MUX_MAX_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 type CompanionAudioTimingMetadata = {
 	startDelayMs?: number;
 	embeddedInVideo?: boolean;
+	systemEmbeddedInVideo?: boolean;
 };
 
 export type MicrophoneChunkTimingEvent = {
@@ -476,13 +477,28 @@ export async function resolveRecordingAudioSources(videoPath: string) {
 		.map((candidate) => candidate.micPath);
 	const microphonePath =
 		microphones.find((file) => file.endsWith(".mic.wav")) ?? microphones[0] ?? null;
-	const metadata = microphonePath ? await readCompanionAudioTimingMetadata(microphonePath) : null;
+	let metadata = microphonePath ? await readCompanionAudioTimingMetadata(microphonePath) : null;
+	if (!microphonePath) {
+		// A missing original track may still leave the completed MP4's marker behind.
+		const basePath = videoPath.replace(/\.[^.]+$/u, "");
+		for (const layout of COMPANION_AUDIO_LAYOUTS) {
+			const saved = await readCompanionAudioTimingMetadata(`${basePath}${layout.micSuffix}`);
+			if (saved?.embeddedInVideo === true) {
+				metadata = saved;
+				break;
+			}
+		}
+	}
 	return {
 		systemPath,
 		microphonePath,
 		microphoneEmbeddedInVideo:
 			metadata?.embeddedInVideo === true ||
 			(!systemPath && !!microphonePath?.endsWith(".mic.m4a")),
+		useEmbeddedAudioFallback:
+			(isLibrarySequenceSource(videoPath) && (!systemPath || !microphonePath)) ||
+			(metadata?.embeddedInVideo === true &&
+				(!microphonePath || (!systemPath && metadata.systemEmbeddedInVideo !== false))),
 	};
 }
 
@@ -521,14 +537,19 @@ export async function getCompanionAudioFallbackPaths(videoPath: string) {
 
 /** Select editable original tracks across capture formats, with explicit legacy inline audio fallback. */
 export async function getCompanionAudioFallbackInfo(videoPath: string) {
-	const { systemPath, microphonePath, microphoneEmbeddedInVideo } =
+	const { systemPath, microphonePath, microphoneEmbeddedInVideo, useEmbeddedAudioFallback } =
 		await resolveRecordingAudioSources(videoPath);
+	let paths: string[];
+	const hasEmbedded =
+		(systemPath || microphonePath || useEmbeddedAudioFallback) &&
+		(await hasEmbeddedAudioStream(videoPath));
+	if (useEmbeddedAudioFallback && hasEmbedded) {
+		// The completed MP4 still contains the full mix. Do not add surviving tracks again.
+		return { paths: [videoPath], startDelayMsByPath: {} };
+	}
 	if (!systemPath && !microphonePath) {
 		return { paths: [], startDelayMsByPath: {} };
 	}
-
-	let paths: string[];
-	const hasEmbedded = await hasEmbeddedAudioStream(videoPath);
 	if (
 		isLibrarySequenceSource(videoPath) ||
 		(systemPath &&

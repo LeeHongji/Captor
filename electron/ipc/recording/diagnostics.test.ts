@@ -251,7 +251,7 @@ describe("getCompanionAudioFallbackPaths", () => {
 			},
 		});
 	});
-	it("does not add already embedded microphone audio a second time", async () => {
+	it("uses the complete embedded mix when a finalized original track is missing", async () => {
 		const videoPath = path.join(tempRoot, "recording.mp4");
 		const micPath = path.join(tempRoot, "recording.mic.wav");
 		await Promise.all([
@@ -270,8 +270,8 @@ describe("getCompanionAudioFallbackPaths", () => {
 		});
 		const { getCompanionAudioFallbackInfo } = await import("./diagnostics");
 		await expect(getCompanionAudioFallbackInfo(videoPath)).resolves.toEqual({
-			paths: [micPath],
-			startDelayMsByPath: { [micPath]: 160 },
+			paths: [videoPath],
+			startDelayMsByPath: {},
 		});
 	});
 

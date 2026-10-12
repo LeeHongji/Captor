@@ -51,7 +51,13 @@ async function normalize(
 		systemPath: system,
 		microphonePath: mic,
 		microphoneEmbeddedInVideo,
+		useEmbeddedAudioFallback,
 	} = await resolveRecordingAudioSources(file);
+	if (useEmbeddedAudioFallback && meta.audio) {
+		throw new Error(
+			"Restore the original audio tracks before appending recordings: the MP4 mix cannot provide separate microphone and system tracks.",
+		);
+	}
 	const args = ["-i", file];
 	const filters: string[] = [];
 	let input = 1;

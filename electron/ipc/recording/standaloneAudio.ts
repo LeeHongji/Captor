@@ -164,7 +164,11 @@ export async function finalizeStandaloneRecordingAudio(
 					throw Error("Invalid microphone timing metadata.");
 				await fs.writeFile(
 					metadataTemp,
-					JSON.stringify({ ...metadata, embeddedInVideo: true }),
+					JSON.stringify({
+						...metadata,
+						embeddedInVideo: true,
+						systemEmbeddedInVideo: !!systemPath,
+					}),
 				);
 				await fs.rename(metadataTemp, metadataPath);
 				metadataWritten = true;

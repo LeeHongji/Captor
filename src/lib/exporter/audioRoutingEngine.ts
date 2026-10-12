@@ -1,8 +1,17 @@
 import type { AudioRegion } from "@/components/video-editor/types";
-import { SOURCE_AUDIO_NORMALIZE_GAIN } from "@/components/video-editor/audio/audioTypes";
+import {
+	SOURCE_AUDIO_NORMALIZE_GAIN,
+	type SourceAudioTrackSettings,
+} from "@/components/video-editor/audio/audioTypes";
 import { resolveSourceAudioFallbackPaths } from "./sourceAudioFallback";
 
 export type SourceTrackId = "mic" | "system" | "mixed";
+
+export function hasIndependentSourceAudioEdits(settings: SourceAudioTrackSettings | undefined) {
+	return [settings?.mic, settings?.system].some(
+		(track) => track && (track.volume !== 1 || track.normalize),
+	);
+}
 export type ResolvedAudioTrackKind = "user" | "system" | "mic" | "mixed" | "embedded";
 
 export interface ResolvedAudioTrack {

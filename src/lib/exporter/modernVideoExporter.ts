@@ -79,7 +79,8 @@ import { VideoMuxer } from "./muxer";
 import { roundNativeStaticLayoutContentSize } from "./nativeStaticLayoutGeometry";
 import { buildNativeStaticLayoutCursorTelemetry } from "./nativeStaticLayoutTelemetry";
 import { getWebcamShadowStrength } from "./shadowProfile";
-import { resolveSourceAudioFallbackPaths } from "./sourceAudioFallback";
+import { isEmbeddedMixFallback, resolveSourceAudioFallbackPaths } from "./sourceAudioFallback";
+import { hasIndependentSourceAudioEdits } from "./audioRoutingEngine";
 import { type DecodedVideoInfo, StreamingVideoDecoder } from "./streamingDecoder";
 import type {
 	ExportConfig,
@@ -378,6 +379,15 @@ export class ModernVideoExporter {
 	}
 
 	async export(): Promise<ExportResult> {
+		if (
+			isEmbeddedMixFallback(this.config.videoUrl, this.config.sourceAudioFallbackPaths) &&
+			hasIndependentSourceAudioEdits(this.config.sourceAudioTrackSettings)
+		) {
+			return {
+				success: false,
+				error: "Restore the original audio tracks before exporting: the MP4 mix cannot preserve separate microphone or system audio edits.",
+			};
+		}
 		let useFallbackMediaSource = false;
 		let retriedWithFallbackMediaSource = false;
 		let nativeFailure: string | null = null;

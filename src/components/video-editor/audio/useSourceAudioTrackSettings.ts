@@ -5,6 +5,7 @@ import type {
 } from "@/components/video-editor/audio/audioTypes";
 
 interface UseSourceAudioTrackSettingsParams {
+	preserveMissingTracks?: boolean;
 	selectedClipId: string | null;
 	activeClipId: string | null;
 	sourceAudioTrackSettingsByClip: Record<string, SourceAudioTrackSettings>;
@@ -41,6 +42,7 @@ function isSameTrackMeta(left: SourceAudioTrackMeta, right: SourceAudioTrackMeta
 }
 
 export function useSourceAudioTrackSettings({
+	preserveMissingTracks = false,
 	selectedClipId,
 	activeClipId,
 	sourceAudioTrackSettingsByClip,
@@ -74,7 +76,13 @@ export function useSourceAudioTrackSettings({
 		(tracks: SourceAudioTrackMeta) => {
 			setSourceAudioTrackMeta((prev) => (isSameTrackMeta(prev, tracks) ? prev : tracks));
 			setDefaultSourceAudioTrackSettings((prev) => {
-				const next: SourceAudioTrackSettings = {};
+				// Loading or missing metadata must not discard a saved mute/gain decision.
+				const next: SourceAudioTrackSettings = Object.fromEntries(
+					Object.entries(prev).filter(
+						([, setting]) =>
+							preserveMissingTracks || setting.volume !== 1 || setting.normalize,
+					),
+				);
 				for (const track of tracks) {
 					next[track.id] = prev[track.id] ?? { volume: 1, normalize: false };
 				}
@@ -99,7 +107,7 @@ export function useSourceAudioTrackSettings({
 				return prev;
 			});
 		},
-		[setDefaultSourceAudioTrackSettings],
+		[preserveMissingTracks, setDefaultSourceAudioTrackSettings],
 	);
 
 	const getSourceAudioTrackSettingsForClip = useCallback(

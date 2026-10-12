@@ -46,3 +46,11 @@ export function resolveSourceAudioFallbackPaths(
 			: normalizedPaths.map(({ audioPath }) => audioPath),
 	};
 }
+
+export function isEmbeddedMixFallback(
+	videoResource: string | null | undefined,
+	paths: string[] | null | undefined,
+) {
+	const sources = resolveSourceAudioFallbackPaths(videoResource, paths);
+	return sources.hasEmbeddedSourceAudio && sources.externalAudioPaths.length === 0;
+}

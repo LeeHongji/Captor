@@ -80,11 +80,23 @@ export async function fetchManualRelease(
 	experimental: boolean,
 	arch: string,
 ) {
-	const response = await fetch(`${RELEASES_API}?per_page=100`, {
-		headers: { Accept: "application/vnd.github+json" },
-		signal: AbortSignal.timeout(15_000),
-	});
-	if (response.status === 404) return null;
-	if (!response.ok) throw new Error(`GitHub update check failed (${response.status}).`);
-	return selectManualRelease(await response.json(), currentVersion, experimental, arch);
+	const releases: unknown[] = [];
+	const signal = AbortSignal.timeout(15_000);
+	for (let page = 1; ; page++) {
+		// Construct each page locally rather than following API-provided URLs.
+		const response = await fetch(
+			`${RELEASES_API}?per_page=100${page === 1 ? "" : `&page=${page}`}`,
+			{
+				headers: { Accept: "application/vnd.github+json" },
+				signal,
+			},
+		);
+		if (response.status === 404) return null;
+		if (!response.ok) throw new Error(`GitHub update check failed (${response.status}).`);
+		const data: unknown = await response.json();
+		if (!Array.isArray(data)) throw new Error("Invalid GitHub release list.");
+		releases.push(...data);
+		if (!/rel="next"/.test(response.headers?.get("link") ?? "")) break;
+	}
+	return selectManualRelease(releases, currentVersion, experimental, arch);
 }

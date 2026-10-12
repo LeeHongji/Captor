@@ -4,9 +4,13 @@ import {
 	type SourceAudioTrackSettings,
 } from "@/components/video-editor/audio/audioTypes";
 import { useSourceAudioTrackSettings } from "./useSourceAudioTrackSettings";
-import { getSourceTrackIdFromPath } from "@/lib/exporter/audioRoutingEngine";
+import {
+	getSourceTrackIdFromPath,
+	hasIndependentSourceAudioEdits,
+} from "@/lib/exporter/audioRoutingEngine";
 
 interface UseClipAudioSettingsControllerParams {
+	preserveMissingTracks?: boolean;
 	selectedClipId: string | null;
 	activeClipId: string | null;
 	sourceAudioTrackSettingsByClip: Record<string, SourceAudioTrackSettings>;
@@ -20,6 +24,7 @@ interface UseClipAudioSettingsControllerParams {
 }
 
 export function useClipAudioSettingsController({
+	preserveMissingTracks = false,
 	selectedClipId,
 	activeClipId,
 	sourceAudioTrackSettingsByClip,
@@ -36,6 +41,7 @@ export function useClipAudioSettingsController({
 		onSelectedClipSourceAudioTrackVolumeChange,
 		onSelectedClipSourceAudioTrackNormalizeChange,
 	} = useSourceAudioTrackSettings({
+		preserveMissingTracks,
 		selectedClipId,
 		activeClipId,
 		sourceAudioTrackSettingsByClip,
@@ -58,13 +64,18 @@ export function useClipAudioSettingsController({
 	}, [sourceAudioTrackMeta]);
 
 	const embeddedSourcePreviewGain = useMemo(() => {
+		if (
+			preserveMissingTracks &&
+			hasIndependentSourceAudioEdits(previewSourceAudioTrackSettings)
+		)
+			return 0;
 		const settings = previewSourceAudioTrackSettings[embeddedTrackId] ?? {
 			volume: 1,
 			normalize: false,
 		};
 		const normalizeGain = settings.normalize ? SOURCE_AUDIO_NORMALIZE_GAIN : 1;
 		return Math.max(0, Math.min(1, settings.volume * normalizeGain));
-	}, [embeddedTrackId, previewSourceAudioTrackSettings]);
+	}, [embeddedTrackId, previewSourceAudioTrackSettings, preserveMissingTracks]);
 
 	const getSourceTrackPreviewGain = useCallback(
 		(audioPath: string) => {

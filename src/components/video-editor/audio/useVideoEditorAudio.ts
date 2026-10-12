@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import type { SourceAudioTrackSettings } from "@/components/video-editor/audio/audioTypes";
 import { resolveSourceTrackRoutingPolicy } from "@/lib/exporter/sourceTrackRoutingPolicy";
+import { isEmbeddedMixFallback } from "@/lib/exporter/sourceAudioFallback";
 import type { AudioRegion, ClipRegion } from "../types";
 import { findClipAtTimelineTime } from "../types";
 import { isClipMutedById } from "./clipAudio";
@@ -105,6 +106,7 @@ export function useVideoEditorAudio({
 		embeddedSourcePreviewGain,
 		getSourceTrackPreviewGain,
 	} = useClipAudioSettingsController({
+		preserveMissingTracks: isEmbeddedMixFallback(currentSourcePath, sourceAudioFallbackPaths),
 		selectedClipId,
 		activeClipId: activeClipIdAtCurrentTime,
 		sourceAudioTrackSettingsByClip,

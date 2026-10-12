@@ -56,4 +56,26 @@ describe("manual installer discovery", () => {
 			"https://api.github.com/repos/LeeHongji/Captor/releases?per_page=100",
 		);
 	});
+	it("finds an installable stable release beyond a page of newer betas", async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce({
+				status: 200,
+				ok: true,
+				headers: new Headers({ Link: '<https://example.com/untrusted>; rel="next"' }),
+				json: async () =>
+					Array.from({ length: 100 }, (_, i) => release(`0.0.5-beta.${i}`, true)),
+			})
+			.mockResolvedValueOnce({
+				status: 200,
+				ok: true,
+				headers: new Headers(),
+				json: async () => [release("0.0.4")],
+			});
+		vi.stubGlobal("fetch", fetchMock);
+		expect((await fetchManualRelease("0.0.2", false, "arm64"))?.version).toBe("0.0.4");
+		expect(fetchMock.mock.calls[1][0]).toBe(
+			"https://api.github.com/repos/LeeHongji/Captor/releases?per_page=100&page=2",
+		);
+	});
 });

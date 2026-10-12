@@ -2,6 +2,9 @@ import { useCallback, useRef } from "react";
 import { toast } from "@/components/ui/toast";
 import { getMp4ExportBitrate } from "@/lib/exporter/exportBitrate";
 import { DEFAULT_MP4_CODEC } from "@/lib/exporter/mp4Support";
+import { isEmbeddedMixFallback } from "@/lib/exporter/sourceAudioFallback";
+import { hasIndependentSourceAudioEdits } from "@/lib/exporter/audioRoutingEngine";
+import { getLocalFilePathFromResource } from "@/lib/exporter/mediaResource";
 import type { ExportSettings } from "@/lib/exporter/types";
 import { calculateMp4ExportDimensions } from "../exportDimensions";
 import { resolveMp4ExportRouting } from "../mp4ExportRouting";
@@ -214,6 +217,25 @@ export function useExportRunner(input: ExportRunnerInput) {
 					}
 				} else {
 					// MP4 Export
+					const sourceAudio = await window.electronAPI.getVideoAudioFallbackPaths(
+						getLocalFilePathFromResource(videoPath) ?? videoPath,
+					);
+					if (exportWasCancelled()) return;
+					if (!sourceAudio.success)
+						throw new Error(
+							"Could not verify the original audio tracks. Restore the files and try exporting again.",
+						);
+					if (
+						isEmbeddedMixFallback(videoPath, sourceAudio.paths) &&
+						[
+							timeline.defaultSourceAudioTrackSettings,
+							...Object.values(timeline.sourceAudioTrackSettingsByClip),
+						].some(hasIndependentSourceAudioEdits)
+					) {
+						throw new Error(
+							"Restore the original audio tracks before exporting: the MP4 mix cannot preserve separate audio edits in this project.",
+						);
+					}
 					const { quality, encodingMode, selectedMp4FrameRate } =
 						resolveMp4ExportSettings({
 							smokeExportConfig: {
@@ -300,9 +322,8 @@ export function useExportRunner(input: ExportRunnerInput) {
 						}),
 						audioRegions,
 						clipRegions,
-						sourceAudioFallbackPaths: audio.sourceAudioFallbackPaths,
-						sourceAudioFallbackStartDelayMsByPath:
-							audio.sourceAudioFallbackStartDelayMsByPath,
+						sourceAudioFallbackPaths: sourceAudio.paths,
+						sourceAudioFallbackStartDelayMsByPath: sourceAudio.startDelayMsByPath,
 						sourceAudioTrackSettings: sourceAudioTrackSettingsForExport,
 					};
 

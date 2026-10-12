@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/toast";
 import { SOURCE_AUDIO_FALLBACK_TOAST_ID } from "@/components/video-editor/audio/audioTypes";
+import { isEmbeddedMixFallback } from "@/lib/exporter/sourceAudioFallback";
 
 interface UseSourceAudioFallbackParams {
 	currentSourcePath: string | null;
@@ -56,7 +57,12 @@ export function useSourceAudioFallback({
 					return;
 				}
 
-				toast.dismiss(SOURCE_AUDIO_FALLBACK_TOAST_ID);
+				if (isEmbeddedMixFallback(currentSourcePath, result.paths)) {
+					toast.warning(
+						"Original audio tracks are missing. Captor is using the MP4 mix. Restore the original files to keep separate audio edits; incompatible edits mute preview and block export.",
+						{ id: SOURCE_AUDIO_FALLBACK_TOAST_ID, duration: 10000 },
+					);
+				} else toast.dismiss(SOURCE_AUDIO_FALLBACK_TOAST_ID);
 				setSourceAudioFallbackPaths(result.paths ?? []);
 				setSourceAudioFallbackStartDelayMsByPath(result.startDelayMsByPath ?? {});
 			} catch (error) {

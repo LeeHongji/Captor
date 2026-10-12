@@ -422,3 +422,99 @@ it.each([
 	const companions = await getCompanionAudioFallbackInfo(result.path);
 	expect(companions.paths).toHaveLength(2);
 }, 60_000);
+
+it.each([
+	"system",
+	"mic",
+	"both",
+])("keeps complete MP4 audio and refuses destructive append when %s originals are missing", async (missingTrack) => {
+	const clips = [
+		path.join(state.root, "recording-a.mp4"),
+		path.join(state.root, "recording-b.mp4"),
+	];
+	for (const clip of clips) {
+		await run(ffmpeg, [
+			"-v",
+			"error",
+			"-f",
+			"lavfi",
+			"-i",
+			"color=c=black:s=64x64:r=10:d=1",
+			"-f",
+			"lavfi",
+			"-i",
+			"anullsrc=r=48000:cl=stereo",
+			"-t",
+			"1",
+			"-c:v",
+			"libx264",
+			"-c:a",
+			"aac",
+			clip,
+		]);
+		const system = clip.replace(".mp4", ".system.m4a");
+		await run(ffmpeg, [
+			"-v",
+			"error",
+			"-f",
+			"lavfi",
+			"-i",
+			"sine=frequency=440:sample_rate=48000:duration=1",
+			system,
+		]);
+		await run(ffmpeg, [
+			"-v",
+			"error",
+			"-f",
+			"lavfi",
+			"-i",
+			"sine=frequency=1000:sample_rate=48000:duration=1",
+			clip.replace(".mp4", ".mic.wav"),
+		]);
+		const { finalizeStandaloneRecordingAudio } = await import("./standaloneAudio");
+		await finalizeStandaloneRecordingAudio(clip, true, true);
+	}
+	await listRecordings();
+	const result = await importRecording(clips[0], clips[1]);
+	for (const clip of clips) {
+		if (missingTrack !== "mic") await fs.rm(clip.replace(".mp4", ".system.m4a"));
+		if (missingTrack !== "system") await fs.rm(clip.replace(".mp4", ".mic.wav"));
+	}
+	const before = await fs.readFile(clips[0]);
+	await expect(importRecording(clips[0], clips[1])).rejects.toThrow(
+		"Restore the original audio tracks",
+	);
+	await expect(importRecording(result.path, clips[0])).rejects.toThrow(
+		"Restore the original audio tracks",
+	);
+	expect(await fs.readFile(clips[0])).toEqual(before);
+	const volume = async (file: string, frequency: number) => {
+		const { stderr } = await run(ffmpeg, [
+			"-hide_banner",
+			"-i",
+			file,
+			"-vn",
+			"-af",
+			`bandpass=f=${frequency}:width_type=h:width=20,volumedetect`,
+			"-f",
+			"null",
+			"-",
+		]);
+		return Number(stderr.match(/mean_volume:\s*([-\d.]+) dB/)?.[1]);
+	};
+	for (const frequency of [440, 1000]) {
+		expect(await volume(result.path, frequency)).toBeGreaterThan(-35);
+		expect(await volume(result.path, frequency)).toBeCloseTo(
+			await volume(clips[0], frequency),
+			0,
+		);
+	}
+	const fallback = await getCompanionAudioFallbackInfo(clips[0]);
+	expect(fallback.paths).toEqual([clips[0]]);
+	if (missingTrack !== "mic") await fs.rm(result.path.replace(".mp4", ".system.wav"));
+	if (missingTrack !== "system") await fs.rm(result.path.replace(".mp4", ".mic.wav"));
+	expect((await getCompanionAudioFallbackInfo(result.path)).paths).toEqual([result.path]);
+	await expect(importRecording(result.path, clips[0])).rejects.toThrow(
+		"Restore the original audio tracks",
+	);
+}, 60_000);

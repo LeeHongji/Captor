@@ -41,19 +41,21 @@ describe("manual packaged updater", () => {
 			vi.fn().mockResolvedValue({
 				ok: true,
 				status: 200,
-				json: async () => ({
-					tag_name: "v0.0.3",
-					draft: false,
-					prerelease: false,
-					html_url: "https://evil.example",
-					assets: [
-						{
-							name: `Captor-0.0.3-${process.arch}.dmg`,
-							state: "uploaded",
-							size: 100,
-						},
-					],
-				}),
+				json: async () => [
+					{
+						tag_name: "v0.0.3",
+						draft: false,
+						prerelease: false,
+						html_url: "https://evil.example",
+						assets: [
+							{
+								name: `Captor-0.0.3-${process.arch}.dmg`,
+								state: "uploaded",
+								size: 100,
+							},
+						],
+					},
+				],
 			}),
 		);
 		const send = vi.fn(() => true);
