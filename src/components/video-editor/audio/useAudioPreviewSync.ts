@@ -417,8 +417,13 @@ export function useAudioPreviewSync({
 				sourceAudioFallbackStartDelayMsByPath[sourceAudioPath],
 			);
 			const maxPreviewStartDelaySeconds = isMicCompanionTrack ? 2 : 5;
+			const recordedDelayMs = sourceAudioFallbackStartDelayMsByPath[sourceAudioPath];
 			const startDelaySeconds = isMicCompanionTrack
-				? 0
+				? Number.isFinite(recordedDelayMs) &&
+					recordedDelayMs >= 0 &&
+					(!Number.isFinite(duration) || recordedDelayMs / 1000 < duration)
+					? recordedDelayMs / 1000
+					: 0
 				: Number.isFinite(duration) &&
 						(rawStartDelaySeconds >= Math.max(0, duration - 0.01) ||
 							rawStartDelaySeconds >

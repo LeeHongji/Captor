@@ -170,7 +170,30 @@ describe("getCompanionAudioFallbackPaths", () => {
 		]);
 	});
 
-	it("prefers the mac mic companion alone when embedded audio already exists and no system sidecar is present", async () => {
+	it("keeps a browser WAV microphone beside native macOS system audio", async () => {
+		const videoPath = path.join(tempRoot, "recording.mp4");
+		const systemPath = path.join(tempRoot, "recording.system.m4a");
+		const micPath = path.join(tempRoot, "recording.mic.wav");
+		await Promise.all([
+			fs.writeFile(videoPath, "video"),
+			fs.writeFile(systemPath, "system"),
+			fs.writeFile(micPath, "microphone"),
+			fs.writeFile(`${micPath}.json`, JSON.stringify({ startDelayMs: 160 })),
+		]);
+		execFileMock.mockImplementation((_file, _args, _options, callback: ExecFileCallback) => {
+			const error = Object.assign(new Error("embedded audio probe"), {
+				stderr: "Stream #0:1: Audio: aac",
+			});
+			callback(error, "", error.stderr);
+		});
+		const { getCompanionAudioFallbackInfo } = await import("./diagnostics");
+		await expect(getCompanionAudioFallbackInfo(videoPath)).resolves.toEqual({
+			paths: [systemPath, micPath],
+			startDelayMsByPath: { [micPath]: 160 },
+		});
+	});
+
+	it("prefers the native mac microphone alone when its inline audio is already microphone", async () => {
 		const videoPath = path.join(tempRoot, "recording.mp4");
 		const micPath = path.join(tempRoot, "recording.mic.m4a");
 
@@ -226,6 +249,29 @@ describe("getCompanionAudioFallbackPaths", () => {
 			startDelayMsByPath: {
 				[micPath]: 2750,
 			},
+		});
+	});
+	it("does not add already embedded microphone audio a second time", async () => {
+		const videoPath = path.join(tempRoot, "recording.mp4");
+		const micPath = path.join(tempRoot, "recording.mic.wav");
+		await Promise.all([
+			fs.writeFile(videoPath, "video"),
+			fs.writeFile(micPath, "mic"),
+			fs.writeFile(
+				`${micPath}.json`,
+				JSON.stringify({ startDelayMs: 160, embeddedInVideo: true }),
+			),
+		]);
+		execFileMock.mockImplementation((_file, _args, _options, callback: ExecFileCallback) => {
+			const error = Object.assign(new Error("embedded audio"), {
+				stderr: "Stream #0:1: Audio: aac",
+			});
+			callback(error, "", error.stderr);
+		});
+		const { getCompanionAudioFallbackInfo } = await import("./diagnostics");
+		await expect(getCompanionAudioFallbackInfo(videoPath)).resolves.toEqual({
+			paths: [micPath],
+			startDelayMsByPath: { [micPath]: 160 },
 		});
 	});
 

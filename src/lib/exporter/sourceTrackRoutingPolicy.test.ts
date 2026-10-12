@@ -24,7 +24,7 @@ describe("resolveSourceTrackRoutingPolicy", () => {
 		]);
 
 		expect(policy.playbackPaths).toEqual(["/tmp/recording.mixed.wav"]);
-		expect(policy.muteEmbeddedPreview).toBe(false);
+		expect(policy.muteEmbeddedPreview).toBe(true);
 		expect(policy.includeEmbeddedInExport).toBe(false);
 	});
 
@@ -37,5 +37,13 @@ describe("resolveSourceTrackRoutingPolicy", () => {
 		expect(policy.playbackPaths).toEqual(["/tmp/recording.mic.wav"]);
 		expect(policy.muteEmbeddedPreview).toBe(false);
 		expect(policy.includeEmbeddedInExport).toBe(true);
+	});
+	it("plays a complete microphone sidecar once when the MP4 already includes it", () => {
+		const policy = resolveSourceTrackRoutingPolicy("/tmp/recording.mp4", [
+			"/tmp/recording.mic.wav",
+		]);
+		expect(policy.playbackPaths).toEqual(["/tmp/recording.mic.wav"]);
+		expect(policy.muteEmbeddedPreview).toBe(true);
+		expect(policy.includeEmbeddedInExport).toBe(false);
 	});
 });

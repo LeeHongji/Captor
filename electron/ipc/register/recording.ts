@@ -14,6 +14,8 @@ import {
 import { getHudCaptureExcludedProcessIds } from "../../../src/lib/hudCaptureProtection";
 import { getPrompterCaptureExclusions } from "../../../src/lib/prompterCapture";
 import { getPrompterCaptureWindow } from "../../teleprompter/window";
+import { isTrustedPrompterSender } from "../../teleprompter/controller";
+import { finalizeOwnedRecordingAudio, registerRecordedAudioTarget } from "../recording/standaloneAudio";
 import { showCursor } from "../../cursorHider";
 import { getHudOverlayCaptureProtectionEnabled, beginHudCaptureProtection } from "../../windows";
 import { ALLOW_CAPTOR_WINDOW_CAPTURE } from "../constants";
@@ -799,6 +801,7 @@ export function registerRecordingHandlers(
 				});
 
 				await waitForNativeCaptureStart(captProc);
+				registerRecordedAudioTarget(outputPath);
 				setNativeScreenRecordingActive(true);
 
 				// If the native helper reported MICROPHONE_CAPTURE_UNAVAILABLE, it started
@@ -1378,6 +1381,31 @@ export function registerRecordingHandlers(
 		return { success: true, diagnostics: lastNativeCaptureDiagnostics };
 	});
 
+	ipcMain.handle(
+		"finalize-recorded-audio",
+		async (event, videoPath: unknown, microphoneExpected: unknown) => {
+			if (
+				!isTrustedPrompterSender(event, ["hud-overlay"]) ||
+				process.platform !== "darwin" ||
+				typeof videoPath !== "string" ||
+				videoPath !== currentVideoPath ||
+				typeof microphoneExpected !== "boolean" ||
+				nativeScreenRecordingActive
+			) {
+				throw Error("Invalid recording audio finalization request.");
+			}
+			try {
+				await finalizeOwnedRecordingAudio(videoPath, microphoneExpected);
+				return { success: true };
+			} catch (error) {
+				console.error("Failed to finalize recording audio:", error);
+				return {
+					success: false,
+					error: "The MP4 audio could not be finalized. Your video and audio files have been preserved.",
+				};
+			}
+		},
+	);
 	ipcMain.handle("get-video-audio-fallback-paths", async (_event, videoPath: string) => {
 		if (!videoPath) {
 			return { success: true, paths: [], startDelayMsByPath: {} };

@@ -617,6 +617,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	stopNativeScreenRecording: () => {
 		return ipcRenderer.invoke("stop-native-screen-recording");
 	},
+	finalizeRecordedAudio: (videoPath: string, microphoneExpected: boolean) => {
+		return ipcRenderer.invoke("finalize-recorded-audio", videoPath, microphoneExpected);
+	},
 	recoverNativeScreenRecording: () => {
 		return ipcRenderer.invoke("recover-native-screen-recording");
 	},

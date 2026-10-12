@@ -68,7 +68,10 @@ export function buildResolvedAudioPlan(input: {
 	if (pathsByTrack.mic) playbackPaths.push(pathsByTrack.mic);
 	if (!hasDedicatedTracks && pathsByTrack.mixed) playbackPaths.push(pathsByTrack.mixed);
 
-	const includeEmbeddedInExport = !pathsByTrack.system && !pathsByTrack.mixed;
+	const includeEmbeddedInExport =
+		!pathsByTrack.system &&
+		!pathsByTrack.mixed &&
+		(hasEmbeddedSourceAudio || playbackPaths.length === 0);
 	const resolvedRegions = (input.audioRegions ?? [])
 		.slice()
 		.sort((a, b) => a.startMs - b.startMs);
@@ -103,7 +106,7 @@ export function buildResolvedAudioPlan(input: {
 		});
 	}
 
-	if (hasEmbeddedSourceAudio && input.videoResource) {
+	if (hasEmbeddedSourceAudio && includeEmbeddedInExport && input.videoResource) {
 		tracks.push({
 			id: `embedded:${input.videoResource}`,
 			kind: "embedded",
@@ -123,7 +126,7 @@ export function buildResolvedAudioPlan(input: {
 		hasEmbeddedSourceAudio,
 		pathsByTrack,
 		playbackPaths,
-		muteEmbeddedPreview: hasDedicatedTracks && !includeEmbeddedInExport,
+		muteEmbeddedPreview: playbackPaths.length > 0 && !includeEmbeddedInExport,
 		includeEmbeddedInExport,
 		tracks,
 		masterGain: clampGain(input.masterGain ?? 1, 1),

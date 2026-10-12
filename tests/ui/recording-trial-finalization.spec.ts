@@ -157,11 +157,12 @@ for (const companion of ["camera", "microphone", "browser-camera"] as const) {
 		await page.getByRole("button", { name: "Record", exact: true }).click();
 		await page.getByRole("button", { name: "Stop", exact: true }).click();
 		await expect(page.locator("html")).toHaveAttribute("data-companion-saving", "true");
-		await expect(page.locator("html")).toHaveAttribute("data-editor-opened", "true");
+		await expect(page.locator("html")).not.toHaveAttribute("data-editor-opened", "true");
 		await expect(page.locator("html")).toHaveAttribute("data-finish-calls", "0");
 		await page.evaluate(() => window.dispatchEvent(new Event("test-release-companion")));
 		await expect(page.locator("html")).toHaveAttribute("data-finish-calls", "1");
 		await expect(page.locator("html")).toHaveAttribute("data-trial-complete", "true");
+		await expect(page.locator("html")).toHaveAttribute("data-editor-opened", "true");
 		await expect(page.locator("html")).toHaveAttribute("data-hud-closed", "true");
 	});
 }

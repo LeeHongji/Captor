@@ -3,6 +3,7 @@ import { nativeVideoExportSessions, nativeStaticLayoutExportSessions } from "./i
 import { hasUnsavedRecordingDraft, clearUnsavedRecordingDraft } from "./teleprompter/controller";
 import { createSaveBeforeCloseController } from "./saveBeforeClose";
 import { clearRecordingTrashUndo } from "./ipc/recording/library";
+import { cancelAndWaitForRecordingAudioFinalizations, hasRecordingAudioFinalization } from "./ipc/recording/standaloneAudio";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -881,8 +882,19 @@ function createSourceSelectorWindowWrapper() {
 
 // On macOS, applications and their menu bar stay active until the user quits
 // explicitly with Cmd + Q.
-app.on("before-quit", () => {
+let audioQuitPending = false;
+app.on("before-quit", (event) => {
 	isAppQuitting = true;
+	if (hasRecordingAudioFinalization() || audioQuitPending) {
+		event.preventDefault();
+		if (!audioQuitPending) {
+			audioQuitPending = true;
+			void cancelAndWaitForRecordingAudioFinalizations().finally(() => {
+				audioQuitPending = false;
+				app.quit();
+			});
+		}
+	}
 	void clearRecordingTrashUndo().catch((error) =>
 		console.warn("Could not clear recording undo cache", error),
 	);

@@ -10,7 +10,7 @@ import { buildMediaUrl, getMediaServerBaseUrl } from "../../mediaServer";
 import { getFfmpegBinaryPath } from "../ffmpeg/binary";
 import { rememberApprovedLocalReadPath, resolveApprovedLocalMediaPath } from "../project/manager";
 import { getRecordingsDir, getTelemetryPathForVideo } from "../utils";
-import { getUsableCompanionAudioCandidates } from "./diagnostics";
+import { resolveRecordingAudioSources } from "./diagnostics";
 import { normalizeCursorTelemetrySamples, writeCursorTelemetry } from "../cursor/telemetry";
 import { listRecordings } from "./library";
 import type {
@@ -47,12 +47,11 @@ async function normalize(
 	signal?: AbortSignal,
 ) {
 	const meta = await probe(file, signal);
-	const candidates = await getUsableCompanionAudioCandidates(file);
-	const companion = candidates[0];
-	const system = companion?.usablePaths.includes(companion.systemPath)
-		? companion.systemPath
-		: null;
-	const mic = companion?.usablePaths.includes(companion.micPath) ? companion.micPath : null;
+	const {
+		systemPath: system,
+		microphonePath: mic,
+		microphoneEmbeddedInVideo,
+	} = await resolveRecordingAudioSources(file);
 	const args = ["-i", file];
 	const filters: string[] = [];
 	let input = 1;
@@ -74,7 +73,7 @@ async function normalize(
 			} catch {
 				/* Optional capture timing. */
 			}
-		} else if (kind === "system" && meta.audio) {
+		} else if (kind === "system" && meta.audio && !microphoneEmbeddedInVideo) {
 			label = "0:a:0";
 		} else {
 			args.push("-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo");

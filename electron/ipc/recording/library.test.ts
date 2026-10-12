@@ -329,9 +329,96 @@ it("restores on volumes without hard links and preserves conflicts", async () =>
 });
 
 it("Raw includes camera and audio sources without including metadata or symlinks", async () => {
- const files = ["screen.mp4", "screen.webcam.mp4", "screen.mic.wav", "screen.system.m4a"];
- for (const name of [...files, "screen.cursor.json"]) await fs.writeFile(path.join(state.root, name), "fixture");
- await fs.symlink(path.join(state.root, "screen.mp4"), path.join(state.root, "linked.mp4"));
- expect((await listRecordings(true)).map(entry => entry.name).sort()).toEqual(files.sort());
- expect((await listRecordings()).map(entry => entry.name)).toEqual(["screen.mp4"]);
+	const files = ["screen.mp4", "screen.webcam.mp4", "screen.mic.wav", "screen.system.m4a"];
+	for (const name of [...files, "screen.cursor.json"])
+		await fs.writeFile(path.join(state.root, name), "fixture");
+	await fs.symlink(path.join(state.root, "screen.mp4"), path.join(state.root, "linked.mp4"));
+	expect((await listRecordings(true)).map((entry) => entry.name).sort()).toEqual(files.sort());
+	expect((await listRecordings()).map((entry) => entry.name)).toEqual(["screen.mp4"]);
 });
+
+it.each([
+	"mixed-formats",
+	"complete-mic-only",
+	"legacy-native-mic-only",
+])("appends %s without dropping or doubling microphone audio", async (layout) => {
+	const clips = [
+		path.join(state.root, "recording-a.mp4"),
+		path.join(state.root, "recording-b.mp4"),
+	];
+	for (const clip of clips) {
+		const mic = clip.replace(
+			".mp4",
+			layout === "legacy-native-mic-only" ? ".mic.m4a" : ".mic.wav",
+		);
+		await run(ffmpeg, [
+			"-v",
+			"error",
+			"-f",
+			"lavfi",
+			"-i",
+			"color=c=black:s=64x64:r=10:d=1",
+			"-f",
+			"lavfi",
+			"-i",
+			layout === "legacy-native-mic-only"
+				? "sine=frequency=1000:duration=1"
+				: "anullsrc=r=48000:cl=stereo",
+			"-t",
+			"1",
+			"-c:v",
+			"libx264",
+			"-c:a",
+			"aac",
+			clip,
+		]);
+		await run(ffmpeg, [
+			"-v",
+			"error",
+			"-f",
+			"lavfi",
+			"-i",
+			"sine=frequency=1000:sample_rate=48000:duration=1",
+			mic,
+		]);
+		if (layout === "mixed-formats")
+			await run(ffmpeg, [
+				"-v",
+				"error",
+				"-i",
+				clip,
+				"-vn",
+				"-c:a",
+				"copy",
+				clip.replace(".mp4", ".system.m4a"),
+			]);
+		if (layout !== "legacy-native-mic-only") {
+			const { finalizeStandaloneRecordingAudio } = await import("./standaloneAudio");
+			await finalizeStandaloneRecordingAudio(clip, true);
+		}
+	}
+	await listRecordings();
+	const result = await importRecording(clips[0], clips[1]);
+	const volume = async (file: string) => {
+		const { stderr } = await run(ffmpeg, [
+			"-hide_banner",
+			"-i",
+			file,
+			"-vn",
+			"-af",
+			"aformat=channel_layouts=stereo,volumedetect",
+			"-f",
+			"null",
+			"-",
+		]);
+		return Number(stderr.match(/mean_volume:\s*([-\d.]+) dB/)?.[1]);
+	};
+	const originalMic = clips[0].replace(
+		".mp4",
+		layout === "legacy-native-mic-only" ? ".mic.m4a" : ".mic.wav",
+	);
+	expect(await volume(result.path)).toBeGreaterThan(-30);
+	expect(await volume(result.path)).toBeCloseTo(await volume(originalMic), 0);
+	const companions = await getCompanionAudioFallbackInfo(result.path);
+	expect(companions.paths).toHaveLength(2);
+}, 60_000);

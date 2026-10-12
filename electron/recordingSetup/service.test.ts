@@ -21,6 +21,9 @@ const m = vi.hoisted(() => ({
 	quit: vi.fn(),
 	prefs: "{}",
 	mouseOutcome: "detected",
+	micPath: null as string | null,
+	embeddedMic: false,
+	embeddedAudio: false,
 }));
 vi.mock("electron", () => ({
 	app: {
@@ -77,6 +80,13 @@ vi.mock("../ipc/paths/binaries", () => ({
 }));
 vi.mock("../ipc/ffmpeg/binary", () => ({ getFfmpegBinaryPath: () => "/bin/ffmpeg" }));
 vi.mock("../ipc/constants", () => ({ RECORDINGS_SETTINGS_FILE: "/prefs" }));
+vi.mock("../ipc/recording/diagnostics", () => ({
+	resolveRecordingAudioSources: async () => ({
+		microphonePath: m.micPath,
+		microphoneEmbeddedInVideo: m.embeddedMic,
+	}),
+	hasEmbeddedAudioStream: async () => m.embeddedAudio,
+}));
 vi.mock("../ipc/utils", () => ({
 	getRecordingsDir: async () => "/recordings",
 	getMacPrivacySettingsUrl: (kind: string) => `settings:${kind}`,
@@ -128,6 +138,9 @@ beforeEach(async () => {
 	m.record = null;
 	m.capturing = false;
 	m.path = null;
+	m.micPath = null;
+	m.embeddedMic = false;
+	m.embeddedAudio = false;
 	m.prefs = "{}";
 	m.mouseOutcome = "detected";
 	m.trusted = true;
@@ -369,4 +382,26 @@ it("does not change permission verification when the mouse test is cancelled", a
 	expect((await call<SetupSnapshot>("snapshot")).verificationFailures).not.toContain(
 		"accessibility",
 	);
+});
+
+it.each([
+	[false, true, "failed"],
+	[true, false, "failed"],
+	[true, true, "complete"],
+])("requires both microphone finalization and actual MP4 audio (%s, %s)", async (marked, audio, phase) => {
+	m.media = "granted";
+	m.ax = true;
+	await call("save", 4, { ...choices, microphone: true }, false);
+	await call("trial-start");
+	service.setupRecordingStateChanged(true);
+	vi.advanceTimersByTime(5000);
+	service.setupRecordingStateChanged(false);
+	m.path = "/recordings/clip.mp4";
+	m.micPath = "/recordings/clip.mic.wav";
+	m.embeddedMic = marked;
+	m.embeddedAudio = audio;
+	const fs = (await import("node:fs/promises")).default;
+	vi.mocked(fs.stat).mockResolvedValueOnce({ size: 100 } as Awaited<ReturnType<typeof fs.stat>>);
+	await m.handlers.get("setup:trial-finish")!({ sender: owner, role: "hud-overlay" });
+	expect((await call<{ phase: string }>("trial-status")).phase).toBe(phase);
 });

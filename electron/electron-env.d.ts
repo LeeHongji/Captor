@@ -270,6 +270,10 @@ interface Window {
 			message?: string;
 			error?: string;
 		}>;
+		finalizeRecordedAudio: (
+			videoPath: string,
+			microphoneExpected: boolean,
+		) => Promise<{ success: boolean; error?: string }>;
 		recoverNativeScreenRecording: () => Promise<{
 			success: boolean;
 			path?: string;

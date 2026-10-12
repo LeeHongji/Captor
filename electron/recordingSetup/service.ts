@@ -29,6 +29,8 @@ import {
 	currentRecordingSession,
 } from "../ipc/state";
 import { getHudOverlayWindow } from "../windows";
+import { hasEmbeddedAudioStream, resolveRecordingAudioSources } from "../ipc/recording/diagnostics";
+import { hasRecordingAudioFinalization } from "../ipc/recording/standaloneAudio";
 import { getPrompterModelStatus, isTrustedPrompterSender } from "../teleprompter/controller";
 import {
 	SETUP_PERMISSIONS,
@@ -77,7 +79,7 @@ let trial: {
 	configuration: string;
 } | null = null;
 export function setupCaptureBusy() {
-	return nativeScreenRecordingActive || windowsNativeCaptureActive || ffmpegScreenRecordingActive;
+	return nativeScreenRecordingActive || windowsNativeCaptureActive || ffmpegScreenRecordingActive || hasRecordingAudioFinalization();
 }
 export async function installationFingerprint() {
 	fingerprint ??= (async () => {
@@ -618,15 +620,15 @@ export function registerRecordingSetupHandlers(options: {
 		)
 			success = false;
 		if (success && finished.choices.microphone) {
-			const base = currentVideoPath!.slice(0, -path.extname(currentVideoPath!).length);
-			if (
-				!(
-					await Promise.all(
-						[".mic.wav", ".mic.m4a"].map((suffix) => exists(base + suffix)),
-					)
-				).some(Boolean)
-			)
+			try {
+				const audio = await resolveRecordingAudioSources(currentVideoPath!);
+				success = !!audio.microphonePath && await exists(audio.microphonePath);
+				if (success && process.platform === "darwin") {
+					success = audio.microphoneEmbeddedInVideo && await hasEmbeddedAudioStream(currentVideoPath!);
+				}
+			} catch {
 				success = false;
+			}
 		}
 		if (trial !== finished) return;
 		finished.phase = success ? "complete" : "failed";

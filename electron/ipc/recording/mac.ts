@@ -31,6 +31,7 @@ import {
 } from "./diagnostics";
 import { emitRecordingInterrupted } from "./events";
 import { getFinalMacCompanionAudioPath } from "./macCompanionAudio";
+import { finalizeStandaloneRecordingAudio } from "./standaloneAudio";
 
 export function waitForNativeCaptureStart(process: ChildProcessWithoutNullStreams) {
 	return new Promise<void>((resolve, reject) => {
@@ -160,10 +161,7 @@ export async function muxNativeMacRecordingWithAudio(
 	systemAudioPath?: string | null,
 	microphonePath?: string | null,
 ) {
-	console.log("[mac-mux] Optimization active: keeping tracks separate.");
-
-	// Optimization: instead of heavy FFmpeg muxing, we ensure audio sidecars
-	// are available alongside the video for the editor.
+	// Preserve separate editable tracks and include them in the standalone MP4.
 	if (systemAudioPath) {
 		const finalSystemPath = getFinalMacCompanionAudioPath(videoPath, systemAudioPath, "system");
 		try {
@@ -187,6 +185,7 @@ export async function muxNativeMacRecordingWithAudio(
 			console.error(`[mac-mux] Failed to handle mic audio:`, err);
 		}
 	}
+	await finalizeStandaloneRecordingAudio(videoPath);
 }
 
 export function attachNativeCaptureLifecycle(process: ChildProcessWithoutNullStreams) {

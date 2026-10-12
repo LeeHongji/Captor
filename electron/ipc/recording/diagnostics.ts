@@ -15,6 +15,7 @@ export const RECORDING_AUDIO_MUX_MAX_TIMEOUT_MS = 2 * 60 * 60 * 1000;
 
 type CompanionAudioTimingMetadata = {
 	startDelayMs?: number;
+	embeddedInVideo?: boolean;
 };
 
 export type MicrophoneChunkTimingEvent = {
@@ -464,6 +465,27 @@ async function readCompanionAudioTimingMetadata(
 	}
 }
 
+/** File extensions describe containers, not the operating system that recorded them. */
+export async function resolveRecordingAudioSources(videoPath: string) {
+	const candidates = await getUsableCompanionAudioCandidates(videoPath);
+	const systemPath =
+		candidates.find((candidate) => candidate.usablePaths.includes(candidate.systemPath))
+			?.systemPath ?? null;
+	const microphones = candidates
+		.filter((candidate) => candidate.usablePaths.includes(candidate.micPath))
+		.map((candidate) => candidate.micPath);
+	const microphonePath =
+		microphones.find((file) => file.endsWith(".mic.wav")) ?? microphones[0] ?? null;
+	const metadata = microphonePath ? await readCompanionAudioTimingMetadata(microphonePath) : null;
+	return {
+		systemPath,
+		microphonePath,
+		microphoneEmbeddedInVideo:
+			metadata?.embeddedInVideo === true ||
+			(!systemPath && !!microphonePath?.endsWith(".mic.m4a")),
+	};
+}
+
 export async function getCompanionAudioStartDelayMs(companionPath: string) {
 	const metadata = await readCompanionAudioTimingMetadata(companionPath);
 	const startDelayMs = metadata?.startDelayMs;
@@ -497,77 +519,27 @@ export async function getCompanionAudioFallbackPaths(videoPath: string) {
 	return paths;
 }
 
-/**
- * Resolve which audio files the editor should play alongside `videoPath`, and
- * the start delay recorded for each.
- *
- * The renderer treats a `.system.`/`.mic.` pair as independent tracks and mutes
- * the video's own track when both are present.  The macOS helper writes system
- * audio to the inline track but keeps both sources as sidecars, so once a mac
- * system sidecar exists the sidecars are authoritative and are returned in place
- * of the video.  Other layouts keep the embedded track and add the mic sidecar.
- */
+/** Select editable original tracks across capture formats, with explicit legacy inline audio fallback. */
 export async function getCompanionAudioFallbackInfo(videoPath: string) {
-	const companionCandidates = await getUsableCompanionAudioCandidates(videoPath);
-	if (companionCandidates.length === 0) {
+	const { systemPath, microphonePath, microphoneEmbeddedInVideo } =
+		await resolveRecordingAudioSources(videoPath);
+	if (!systemPath && !microphonePath) {
 		return { paths: [], startDelayMsByPath: {} };
 	}
 
 	let paths: string[];
-	if (isLibrarySequenceSource(videoPath)) {
-		paths = companionCandidates.flatMap((candidate) => candidate.usablePaths);
-	} else if (await hasEmbeddedAudioStream(videoPath)) {
-		const hasUsableMacSystemCompanion = companionCandidates.some(
-			(candidate) =>
-				candidate.platform === "mac" &&
-				candidate.usablePaths.includes(candidate.systemPath),
-		);
-		const usableMacMicOnlyCompanions = Array.from(
-			new Set(
-				companionCandidates.flatMap((candidate) =>
-					candidate.platform === "mac" &&
-					!candidate.usablePaths.includes(candidate.systemPath) &&
-					candidate.usablePaths.includes(candidate.micPath)
-						? [candidate.micPath]
-						: [],
-				),
-			),
-		);
-
-		if (!hasUsableMacSystemCompanion && usableMacMicOnlyCompanions.length > 0) {
-			paths = usableMacMicOnlyCompanions;
-		} else if (hasUsableMacSystemCompanion) {
-			// The inline mp4 audio track carries system audio only (the helper skips
-			// the microphone while system audio is captured), so returning the video
-			// alone drops the mic entirely.  Hand over both mac sidecars instead and
-			// let the renderer route them as independent system/mic tracks.
-			paths = Array.from(
-				new Set(
-					companionCandidates.flatMap((candidate) =>
-						candidate.platform === "mac" ? candidate.usablePaths : [],
-					),
-				),
-			);
-		} else {
-			const companionPaths = Array.from(
-				new Set(
-					companionCandidates.flatMap((candidate) =>
-						candidate.usablePaths.filter(
-							(companionPath) => companionPath === candidate.micPath,
-						),
-					),
-				),
-			);
-			if (companionPaths.length === 0) {
-				return { paths: [], startDelayMsByPath: {} };
-			}
-
-			paths = [videoPath, ...companionPaths];
-		}
+	const hasEmbedded = await hasEmbeddedAudioStream(videoPath);
+	if (
+		isLibrarySequenceSource(videoPath) ||
+		(systemPath &&
+			(!systemPath.endsWith(".system.wav") || microphoneEmbeddedInVideo || !hasEmbedded))
+	) {
+		paths = [systemPath, microphonePath].filter((file): file is string => !!file);
+	} else if (microphonePath && !microphoneEmbeddedInVideo && hasEmbedded) {
+		// Old recordings may have system audio only in the MP4. Keep it alongside the mic.
+		paths = [videoPath, microphonePath];
 	} else {
-		paths = Array.from(
-			new Set(companionCandidates.flatMap((candidate) => candidate.usablePaths)),
-		);
+		paths = microphonePath ? [microphonePath] : [];
 	}
 
 	const metadataEntries = await Promise.all(
