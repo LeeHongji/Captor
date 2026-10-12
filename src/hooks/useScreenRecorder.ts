@@ -749,7 +749,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	}, []);
 
 	const finalizeRecordingSession = useCallback(
-		async (videoPath: string, webcamPath: string | null) => {
+		async (videoPath: string, webcamPath: string | null, companionsPending = false) => {
 			const start = performance.now();
 			console.log("[PERF:RENDERER] Finalize Session & Switch to Editor: STARTED");
 			const shouldHideOverlayCursor = hideEditorOverlayCursorByDefault.current;
@@ -779,7 +779,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			}
 
 			setFinalizing(false);
-			await window.recordingSetupAPI?.finishTrial();
+			if (!companionsPending) await window.recordingSetupAPI?.finishTrial();
 			await window.electronAPI.switchToEditor();
 			console.log(
 				`[PERF:RENDERER] Finalize Session & Switch to Editor: COMPLETED in ${(performance.now() - start).toFixed(2)}ms`,
@@ -1384,7 +1384,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 				// 1. Finalize the session and switch to editor immediately (Optimistic UI)
 				// We pass null for webcamPath initially to avoid blocking on webcam disk writes/muxing.
-				await finalizeRecordingSession(finalPath, null);
+				await finalizeRecordingSession(finalPath, null, true);
 
 				// 2. Perform background finalization (webcam, muxing, sidecars)
 				// We don't await this to keep the UI responsive
@@ -1468,6 +1468,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					} catch (bgError) {
 						console.error("Error in background finalization:", bgError);
 					} finally {
+						try {
+							await window.recordingSetupAPI?.finishTrial();
+						} catch (error) {
+							console.warn("Failed to verify the finalized setup trial:", error);
+						}
 						// After all background tasks are done (webcam, mic sidecars, muxing),
 						// we can safely close the HUD window to release hardware and resources.
 						if (typeof window.electronAPI?.hudOverlayClose === "function") {
@@ -2249,7 +2254,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					if (videoResult.path) {
 						const finalVideoPath = videoResult.path;
 						// 1. Launch editor immediately (Optimistic UI)
-						await finalizeRecordingSession(finalVideoPath, null);
+						await finalizeRecordingSession(finalVideoPath, null, true);
 
 						// 2. Background webcam processing
 						void (async () => {
@@ -2268,6 +2273,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 									});
 								}
 							} finally {
+								try {
+									await window.recordingSetupAPI?.finishTrial();
+								} catch (error) {
+									console.warn("Failed to verify the finalized setup trial:", error);
+								}
 								// After all background tasks are done (webcam),
 								// we can safely close the HUD window to release hardware and resources.
 								if (typeof window.electronAPI?.hudOverlayClose === "function") {
