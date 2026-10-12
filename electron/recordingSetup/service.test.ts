@@ -22,7 +22,7 @@ const m = vi.hoisted(() => ({
 	prefs: "{}",
 	mouseOutcome: "detected",
 	micPath: null as string | null,
-	embeddedMic: false,
+	micFinalized: false,
 	embeddedAudio: false,
 }));
 vi.mock("electron", () => ({
@@ -80,10 +80,14 @@ vi.mock("../ipc/paths/binaries", () => ({
 }));
 vi.mock("../ipc/ffmpeg/binary", () => ({ getFfmpegBinaryPath: () => "/bin/ffmpeg" }));
 vi.mock("../ipc/constants", () => ({ RECORDINGS_SETTINGS_FILE: "/prefs" }));
+vi.mock("../ipc/recording/standaloneAudio", () => ({
+	hasRecordingAudioFinalization: () => false,
+	hasFinalizedRecordingMicrophone: () => m.micFinalized,
+}));
 vi.mock("../ipc/recording/diagnostics", () => ({
 	resolveRecordingAudioSources: async () => ({
 		microphonePath: m.micPath,
-		microphoneEmbeddedInVideo: m.embeddedMic,
+		microphoneEmbeddedInVideo: true,
 	}),
 	hasEmbeddedAudioStream: async () => m.embeddedAudio,
 }));
@@ -139,7 +143,7 @@ beforeEach(async () => {
 	m.capturing = false;
 	m.path = null;
 	m.micPath = null;
-	m.embeddedMic = false;
+	m.micFinalized = false;
 	m.embeddedAudio = false;
 	m.prefs = "{}";
 	m.mouseOutcome = "detected";
@@ -388,7 +392,7 @@ it.each([
 	[false, true, "failed"],
 	[true, false, "failed"],
 	[true, true, "complete"],
-])("requires both microphone finalization and actual MP4 audio (%s, %s)", async (marked, audio, phase) => {
+])("requires main-process microphone completion and actual MP4 audio (%s, %s)", async (marked, audio, phase) => {
 	m.media = "granted";
 	m.ax = true;
 	await call("save", 4, { ...choices, microphone: true }, false);
@@ -398,7 +402,7 @@ it.each([
 	service.setupRecordingStateChanged(false);
 	m.path = "/recordings/clip.mp4";
 	m.micPath = "/recordings/clip.mic.wav";
-	m.embeddedMic = marked;
+	m.micFinalized = marked;
 	m.embeddedAudio = audio;
 	const fs = (await import("node:fs/promises")).default;
 	vi.mocked(fs.stat).mockResolvedValueOnce({ size: 100 } as Awaited<ReturnType<typeof fs.stat>>);

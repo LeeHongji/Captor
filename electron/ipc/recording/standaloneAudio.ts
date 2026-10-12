@@ -14,24 +14,44 @@ import {
 } from "./diagnostics";
 
 const run = promisify(execFile);
-const jobs = new Map<string, Promise<void>>();
+const jobs = new Map<
+	string,
+	{
+		promise: Promise<void>;
+		microphoneExpected: boolean;
+		systemExpected: boolean;
+	}
+>();
 const controllers = new Map<string, AbortController>();
 // Only the main process capture-start path grants permission to rewrite an MP4.
-let recordedAudioTarget: string | null = null;
-export function registerRecordedAudioTarget(videoPath: string) {
-	recordedAudioTarget = videoPath;
+let recordedAudioTarget: {
+	path: string;
+	systemExpected: boolean;
+	microphoneFinalized: boolean | null;
+} | null = null;
+export function registerRecordedAudioTarget(videoPath: string, systemExpected = false) {
+	recordedAudioTarget = { path: videoPath, systemExpected, microphoneFinalized: null };
+}
+export function hasFinalizedRecordingMicrophone(videoPath: string) {
+	return (
+		recordedAudioTarget?.path === videoPath && recordedAudioTarget.microphoneFinalized === true
+	);
 }
 export async function finalizeOwnedRecordingAudio(videoPath: string, microphoneExpected: boolean) {
-	if (videoPath !== recordedAudioTarget)
-		throw Error("Invalid recording audio finalization target.");
-	await finalizeStandaloneRecordingAudio(videoPath, microphoneExpected);
+	const target = recordedAudioTarget;
+	if (videoPath !== target?.path) throw Error("Invalid recording audio finalization target.");
+	if (target.microphoneFinalized !== null && (!microphoneExpected || target.microphoneFinalized))
+		return;
+	await finalizeStandaloneRecordingAudio(videoPath, microphoneExpected, target.systemExpected);
+	if (recordedAudioTarget === target)
+		target.microphoneFinalized = microphoneExpected || hasFinalizedRecordingMicrophone(videoPath);
 }
 export function cancelRecordingAudioFinalizations() {
 	for (const controller of controllers.values()) controller.abort();
 }
 export async function cancelAndWaitForRecordingAudioFinalizations() {
 	cancelRecordingAudioFinalizations();
-	await Promise.allSettled([...jobs.values()]);
+	await Promise.allSettled([...jobs.values()].map((job) => job.promise));
 }
 export function hasRecordingAudioFinalization() {
 	return jobs.size > 0;
@@ -41,9 +61,19 @@ export function hasRecordingAudioFinalization() {
 export async function finalizeStandaloneRecordingAudio(
 	videoPath: string,
 	microphoneExpected = false,
+	systemExpected = false,
 ) {
 	const pending = jobs.get(videoPath);
-	if (pending) await pending;
+	if (pending) {
+		await pending.promise;
+		if (
+			(microphoneExpected && !pending.microphoneExpected) ||
+			(systemExpected && !pending.systemExpected)
+		) {
+			return finalizeStandaloneRecordingAudio(videoPath, microphoneExpected, systemExpected);
+		}
+		return;
+	}
 	const controller = new AbortController();
 	controllers.set(videoPath, controller);
 	const task = (async () => {
@@ -51,6 +81,10 @@ export async function finalizeStandaloneRecordingAudio(
 			await resolveRecordingAudioSources(videoPath);
 		if (microphoneExpected && !microphonePath)
 			throw Error("The recorded microphone audio is missing. The video has been preserved.");
+		if (systemExpected && microphonePath && !systemPath)
+			throw Error(
+				"The recorded system audio source is missing. Original video and audio files have been preserved.",
+			);
 		if (!systemPath && !microphonePath) return;
 		if (microphoneEmbeddedInVideo && (await hasEmbeddedAudioStream(videoPath))) return;
 		if (!microphonePath && (await hasEmbeddedAudioStream(videoPath))) return;
@@ -151,11 +185,12 @@ export async function finalizeStandaloneRecordingAudio(
 			if (metadataTemp) await fs.rm(metadataTemp, { force: true });
 		}
 	})();
-	jobs.set(videoPath, task);
+	const job = { promise: task, microphoneExpected, systemExpected };
+	jobs.set(videoPath, job);
 	try {
 		await task;
 	} finally {
-		if (jobs.get(videoPath) === task) jobs.delete(videoPath);
+		if (jobs.get(videoPath) === job) jobs.delete(videoPath);
 		if (controllers.get(videoPath) === controller) controllers.delete(videoPath);
 	}
 }

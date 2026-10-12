@@ -185,7 +185,7 @@ export async function muxNativeMacRecordingWithAudio(
 			console.error(`[mac-mux] Failed to handle mic audio:`, err);
 		}
 	}
-	await finalizeStandaloneRecordingAudio(videoPath);
+	await finalizeStandaloneRecordingAudio(videoPath, !!microphonePath, !!systemAudioPath);
 }
 
 export function attachNativeCaptureLifecycle(process: ChildProcessWithoutNullStreams) {

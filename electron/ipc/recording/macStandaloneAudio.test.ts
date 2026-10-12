@@ -301,3 +301,86 @@ it("waits for metadata rollback when quitting during the commit window", async (
 	expect(await fs.readFile(video)).toEqual(original);
 	expect(await fs.readFile(`${mic}.json`)).toEqual(timing);
 }, 30_000);
+
+it("preserves inline system audio when a requested system companion is missing", async () => {
+	const { video, system, mic } = await createAudioRecording();
+	const withSystem = `${video}.inline.mp4`;
+	await run(ffmpegPath, [
+		"-v",
+		"error",
+		"-i",
+		video,
+		"-f",
+		"lavfi",
+		"-i",
+		"sine=frequency=440:sample_rate=48000:duration=2",
+		"-map",
+		"0:v:0",
+		"-map",
+		"1:a:0",
+		"-c:v",
+		"copy",
+		"-c:a",
+		"aac",
+		"-t",
+		"2",
+		withSystem,
+	]);
+	await fs.rename(withSystem, video);
+	await fs.rm(system);
+	const original = await fs.readFile(video);
+	const timing = await fs.readFile(`${mic}.json`);
+	const { registerRecordedAudioTarget, finalizeOwnedRecordingAudio } = await import(
+		"./standaloneAudio"
+	);
+	registerRecordedAudioTarget(video, true);
+	await expect(finalizeOwnedRecordingAudio(video, true)).rejects.toThrow("system audio");
+	expect(await fs.readFile(video)).toEqual(original);
+	expect(await fs.readFile(`${mic}.json`)).toEqual(timing);
+}, 30_000);
+
+it("coalesces concurrent completion requests instead of probing once per caller", async () => {
+	const { video, mic } = await createAudioRecording();
+	let entered!: () => void;
+	let release!: () => void;
+	const reached = new Promise<void>((resolve) => {
+		entered = resolve;
+	});
+	const gate = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	const readFile = fs.readFile.bind(fs);
+	let metadataReads = 0;
+	vi.spyOn(fs, "readFile").mockImplementation(async (...args) => {
+		if (args[0] === `${mic}.json`) {
+			metadataReads++;
+			if (metadataReads === 1) {
+				entered();
+				await gate;
+			}
+		}
+		return readFile(...args);
+	});
+	const { finalizeStandaloneRecordingAudio } = await import("./standaloneAudio");
+	const first = finalizeStandaloneRecordingAudio(video, true);
+	await reached;
+	const pending = Array.from({ length: 20 }, () => finalizeStandaloneRecordingAudio(video, true));
+	release();
+	await Promise.all([first, ...pending]);
+	expect(metadataReads).toBe(3);
+}, 30_000);
+
+it("does not let a concurrent weaker request downgrade verified microphone completion", async () => {
+	const { video } = await createAudioRecording();
+	const {
+		registerRecordedAudioTarget,
+		finalizeOwnedRecordingAudio,
+		hasFinalizedRecordingMicrophone,
+	} = await import("./standaloneAudio");
+	registerRecordedAudioTarget(video, true);
+	await Promise.all([
+		finalizeOwnedRecordingAudio(video, true),
+		finalizeOwnedRecordingAudio(video, false),
+	]);
+	expect(hasFinalizedRecordingMicrophone(video)).toBe(true);
+}, 30_000);

@@ -30,7 +30,7 @@ import {
 } from "../ipc/state";
 import { getHudOverlayWindow } from "../windows";
 import { hasEmbeddedAudioStream, resolveRecordingAudioSources } from "../ipc/recording/diagnostics";
-import { hasRecordingAudioFinalization } from "../ipc/recording/standaloneAudio";
+import { hasRecordingAudioFinalization, hasFinalizedRecordingMicrophone } from "../ipc/recording/standaloneAudio";
 import { getPrompterModelStatus, isTrustedPrompterSender } from "../teleprompter/controller";
 import {
 	SETUP_PERMISSIONS,
@@ -624,7 +624,7 @@ export function registerRecordingSetupHandlers(options: {
 				const audio = await resolveRecordingAudioSources(currentVideoPath!);
 				success = !!audio.microphonePath && await exists(audio.microphonePath);
 				if (success && process.platform === "darwin") {
-					success = audio.microphoneEmbeddedInVideo && await hasEmbeddedAudioStream(currentVideoPath!);
+					success = hasFinalizedRecordingMicrophone(currentVideoPath!) && await hasEmbeddedAudioStream(currentVideoPath!);
 				}
 			} catch {
 				success = false;

@@ -236,7 +236,10 @@ test("autosave creates one untitled project, stays idle without edits, and refre
 	await expect(page.getByRole("button", { name: "Rename project" })).toContainText(
 		"Untitled Project",
 	);
-	// Observe more than two debounce periods: idle must not perform periodic saves.
+	// Source metadata and the initial full-track clip can finish after project creation.
+	await expect(page.locator('[data-variant="clip"]')).toHaveAttribute("data-end-ms", "6000", { timeout: 20000 });
+	await page.waitForTimeout(1200);
+	// Observe more than two debounce periods after bootstrap: idle must not perform periodic saves.
 	const before = await page.locator("html").getAttribute("data-project-saves");
 	await page.waitForTimeout(1800);
 	await expect(page.locator("html")).toHaveAttribute("data-project-creates", "1");

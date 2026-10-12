@@ -801,7 +801,7 @@ export function registerRecordingHandlers(
 				});
 
 				await waitForNativeCaptureStart(captProc);
-				registerRecordedAudioTarget(outputPath);
+				registerRecordedAudioTarget(outputPath, !!options?.capturesSystemAudio);
 				setNativeScreenRecordingActive(true);
 
 				// If the native helper reported MICROPHONE_CAPTURE_UNAVAILABLE, it started
