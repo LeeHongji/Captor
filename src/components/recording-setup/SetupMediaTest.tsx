@@ -132,6 +132,24 @@ export function SetupMediaTest({
 				return;
 			}
 			stream.current = media;
+			// Chromium exposes device labels after an explicit, successful media request.
+			const actualDevices = await navigator.mediaDevices.enumerateDevices();
+			if (current !== generation.current) {
+				media.getTracks().forEach((track) => track.stop());
+				return;
+			}
+			setDevices(
+				actualDevices.filter(
+					(input) => input.kind === (kind === "audio" ? "audioinput" : "videoinput"),
+				),
+			);
+			if (device.id || device.label)
+				onDevice?.({
+					id: resolved ?? "",
+					label:
+						actualDevices.find((input) => input.deviceId === resolved)?.label ??
+						device.label,
+				});
 			media.getTracks().forEach((track) =>
 				track.addEventListener(
 					"ended",
