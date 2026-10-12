@@ -111,7 +111,7 @@
 		"openEnvironment": "Check recording environment",
 		"checkFailed": "Could not complete this check. Check again to retry.",
 		"actionFailed": "This action did not complete. Check the current status and try again.",
-		"saveWorkFirst": "Save your current project and stop active recordings or tests before continuing.",
+		"saveWorkFirst": "Save your work, stop recording or device tests, and finish exporting or save or close the pending export result before continuing.",
 		"environmentNotReady": "Some required items are not ready. Complete the highlighted checks first.",
 		"mediaUnavailable": "Could not use this device. Check its permission and connection, then try again.",
 		"deviceDisconnected": "The device disconnected. Reconnect it or select another device.",

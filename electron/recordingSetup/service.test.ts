@@ -338,3 +338,9 @@ it("blocks restart and trial throughout renderer-only export and pending-save ac
 	m.handlers.get("setup:export-busy")!({ sender: owner, role: "editor" }, false);
 	expect((await call("restart")).success).toBe(true);
 });
+it("checks unsaved work before the wizard applies its final draft and preferences", async () => {
+	m.dirty = true;
+	expect((await call("can-finish")).success).toBe(false);
+	m.dirty = false;
+	expect((await call("can-finish")).success).toBe(true);
+});

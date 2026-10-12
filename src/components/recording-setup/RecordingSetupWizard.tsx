@@ -178,6 +178,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 			const operation = persistQueue.current
 				.catch(() => undefined)
 				.then(async () => {
+					if (completed) assertResult(await window.recordingSetupAPI!.canFinish());
 					assertResult(
 						await window.electronAPI.setRecordingPreferences({
 							microphoneEnabled: choices.microphone,
@@ -829,10 +830,23 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 												className="flex items-center justify-between py-3 text-sm"
 											>
 												<span>{t(`setup.${permission}`)}</span>
-												<span className="text-success">
+												<span
+													className={
+														snapshot?.permissions[permission] ===
+															"granted" &&
+														!snapshot.verificationFailures?.includes(
+															permission,
+														)
+															? "text-success"
+															: "text-muted-foreground"
+													}
+												>
 													{t(
 														snapshot?.permissions[permission] ===
-															"granted"
+															"granted" &&
+															!snapshot?.verificationFailures?.includes(
+																permission,
+															)
 															? "setup.ready"
 															: "setup.notActive",
 													)}

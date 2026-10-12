@@ -111,7 +111,7 @@
 		"openEnvironment": "检查录制环境",
 		"checkFailed": "暂时无法完成检测，请点击“重新检测”重试。",
 		"actionFailed": "这项操作未能完成，请检查当前状态后重试。",
-		"saveWorkFirst": "请先保存当前工程，并停止正在进行的录制或测试，再继续操作。",
+		"saveWorkFirst": "请先保存当前工作，结束录制或设备测试，并完成导出、保存或关闭待保存的导出结果，再继续操作。",
 		"environmentNotReady": "仍有必需项目未就绪，请先完成标出的检查。",
 		"mediaUnavailable": "暂时无法使用这台设备，请检查权限和设备连接后重试。",
 		"deviceDisconnected": "设备已断开，请重新连接或选择其他设备。",

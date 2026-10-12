@@ -325,6 +325,12 @@ export function registerRecordingSetupHandlers(options: {
 			? trial.choices
 			: null;
 	});
+	ipcMain.handle("setup:can-finish", (event) => {
+		assertSender(event, ["editor"]);
+		return setupCaptureBusy() || !canRestart() || exportingOwners.size > 0
+			? { success: false, code: "save-work-first" }
+			: { success: true };
+	});
 	ipcMain.handle("setup:snapshot", (event) => {
 		assertSender(event);
 		return getSetupSnapshot();

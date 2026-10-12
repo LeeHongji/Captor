@@ -60,6 +60,7 @@ export interface RecordingSetupAPI {
 	cancelTrial(): Promise<void>;
 	finishTrial(): Promise<void>;
 	trialChoices(): Promise<SetupChoices | null>;
+	canFinish(): Promise<SetupActionResult>;
 	reportFailure(permission: SetupPermission): Promise<void>;
 	exportBusy(busy: boolean): void;
 	testMouse(): Promise<SetupActionResult>;

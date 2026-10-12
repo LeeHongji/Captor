@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld("recordingSetupAPI", {
 	cancelTrial: () => ipcRenderer.invoke("setup:trial-cancel"),
 	finishTrial: () => ipcRenderer.invoke("setup:trial-finish"),
 	trialChoices: () => ipcRenderer.invoke("setup:trial-choices"),
+	canFinish: () => ipcRenderer.invoke("setup:can-finish"),
 	reportFailure: (permission) => ipcRenderer.invoke("setup:failure", permission),
 	exportBusy: (busy) => ipcRenderer.send("setup:export-busy", busy),
 	testMouse: () => ipcRenderer.invoke("setup:mouse-test"),

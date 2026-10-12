@@ -86,6 +86,7 @@ async function setup(page: Page, options = { denied: false, failed: false, theme
 				},
 				finishTrial: async () => undefined,
 				trialChoices: async () => null,
+				canFinish: async () => ({ success: true }),
 				reportFailure: async () => undefined,
 				exportBusy: () => undefined,
 				trialStatus: async () => trial,
@@ -274,4 +275,38 @@ test("changes to this step autosave before viewing projects and reopening setup"
 	await expect(
 		page.getByRole("switch", { name: "Record system audio", exact: true }),
 	).toBeChecked();
+});
+test("finishing checks unsaved work before changing the narration draft", async ({ page }) => {
+	await page.route("**/setup-trial.mp4", (route) =>
+		route.fulfill({ path: "tests/ui/fixtures/preview.mp4", contentType: "video/mp4" }),
+	);
+	await setup(page);
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await page.getByRole("button", { name: "Test mouse interaction", exact: true }).click();
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await page.evaluate(() =>
+		(window as unknown as { testSetupTrialComplete(): void }).testSetupTrialComplete(),
+	);
+	await expect(page.getByRole("button", { name: "Finish setup", exact: true })).toBeEnabled();
+	await page.evaluate(() => {
+		window.recordingSetupAPI!.canFinish = async () => ({
+			success: false,
+			code: "save-work-first",
+		});
+		const save = window.recordingSetupAPI!.save;
+		window.recordingSetupAPI!.save = (step, choices, completed) =>
+			completed
+				? Promise.resolve({ success: false, code: "save-work-first" })
+				: save(step, choices, completed);
+		window.teleprompterAPI!.saveDraft = async () => {
+			document.documentElement.dataset.changedDraft = "true";
+			return window.teleprompterAPI!.getState();
+		};
+	});
+	await page.getByRole("button", { name: "Finish setup", exact: true }).click();
+	await expect(page.getByRole("alert")).toBeVisible();
+	await expect(page.locator("html")).not.toHaveAttribute("data-changed-draft", "true");
+	await expect(page.getByRole("alert")).toContainText("Save your work");
 });
