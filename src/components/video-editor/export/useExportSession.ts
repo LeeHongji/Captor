@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ExportProgress } from "@/lib/exporter";
 import { resolveSavingExportProgress } from "../exportProgressState";
 import type { PendingExportSave } from "./exportPersistence";
@@ -12,6 +12,15 @@ export function useExportSession() {
 	const [showExportDropdown, setShowExportDropdown] = useState(false);
 	const [exportedFilePath, setExportedFilePath] = useState<string>();
 	const [hasPendingExportSave, setHasPendingExportSave] = useState(false);
+	useEffect(() => {
+		window.recordingSetupAPI?.exportBusy(isExporting || hasPendingExportSave);
+	}, [isExporting, hasPendingExportSave]);
+	useEffect(
+		() => () => {
+			window.recordingSetupAPI?.exportBusy(false);
+		},
+		[],
+	);
 	const exporterRef = useRef<CancelableExporter | null>(null);
 	const exportRunIdRef = useRef(0);
 	const cancelledExportRunIdRef = useRef<number | null>(null);

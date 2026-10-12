@@ -1,3 +1,4 @@
+import { openRecordingSetup, reportSetupPermissionFailure } from "../../recordingSetup/service";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { execFile, spawn } from "node:child_process";
 import fs from "node:fs/promises";
@@ -7,9 +8,7 @@ import {
 	app,
 	BrowserWindow,
 	desktopCapturer,
-	dialog,
 	ipcMain,
-	shell,
 	systemPreferences,
 } from "electron";
 import { getHudCaptureExcludedProcessIds } from "../../../src/lib/hudCaptureProtection";
@@ -144,7 +143,6 @@ import {
 } from "../state";
 import type { CursorTelemetryPoint, NativeMacRecordingOptions, SelectedSource } from "../types";
 import {
-	getMacPrivacySettingsUrl,
 	getRecordingsDir,
 	getScreen,
 	getTelemetryPathForVideo,
@@ -700,7 +698,7 @@ export function registerRecordingHandlers(
 				if (options?.capturesMicrophone) {
 					const micStatus = systemPreferences.getMediaAccessStatus("microphone");
 					if (micStatus !== "granted") {
-						await systemPreferences.askForMediaAccess("microphone");
+						throw new Error("MICROPHONE_PERMISSION_DENIED");
 					}
 				}
 
@@ -833,30 +831,10 @@ export function registerRecordingHandlers(
 				console.error("Failed to start native ScreenCaptureKit recording:", error);
 				const errorStr = String(error);
 
-				// Detect TCC (screen recording permission) errors and show a helpful dialog
-				if (
-					errorStr.includes("declined TCC") ||
-					errorStr.includes("declined TCCs") ||
-					errorStr.includes("SCREEN_RECORDING_PERMISSION_DENIED")
-				) {
-					const { response } = await dialog.showMessageBox({
-						type: "warning",
-						title: "Screen Recording Permission Required",
-						message:
-							"Captor needs screen recording permission to capture your screen.",
-						detail: "Please open System Settings > Privacy & Security > Screen Recording, make sure Captor is toggled ON, then try recording again.",
-						buttons: ["Open System Settings", "Cancel"],
-						defaultId: 0,
-						cancelId: 1,
-					});
-					if (response === 0) {
-						await shell.openExternal(getMacPrivacySettingsUrl("screen"));
-					}
-					try {
-						if (captProc) captProc.kill();
-					} catch {
-						/* ignore */
-					}
+				const permissionFailure = errorStr.includes("declined TCC") || errorStr.includes("SCREEN_RECORDING_PERMISSION_DENIED")
+					? "screen" : errorStr.includes("MICROPHONE_PERMISSION_DENIED") ? "microphone" : null;
+				if (permissionFailure) {
+					try { captProc?.kill(); } catch { /* helper already exited */ }
 					setNativeScreenRecordingActive(false);
 					setNativeCaptureProcess(null);
 					setNativeCaptureTargetPath(null);
@@ -864,45 +842,9 @@ export function registerRecordingHandlers(
 					setNativeCaptureMicrophonePath(null);
 					setNativeCaptureStopRequested(false);
 					setNativeCapturePaused(false);
-					return {
-						success: false,
-						message:
-							"Screen recording permission not granted. Please allow access in System Settings and restart the app.",
-						userNotified: true,
-					};
-				}
-
-				if (errorStr.includes("MICROPHONE_PERMISSION_DENIED")) {
-					const { response } = await dialog.showMessageBox({
-						type: "warning",
-						title: "Microphone Permission Required",
-						message: "Captor needs microphone permission to record audio.",
-						detail: "Please open System Settings > Privacy & Security > Microphone, make sure Captor is toggled ON, then try recording again.",
-						buttons: ["Open System Settings", "Cancel"],
-						defaultId: 0,
-						cancelId: 1,
-					});
-					if (response === 0) {
-						await shell.openExternal(getMacPrivacySettingsUrl("microphone"));
-					}
-					try {
-						if (captProc) captProc.kill();
-					} catch {
-						/* ignore */
-					}
-					setNativeScreenRecordingActive(false);
-					setNativeCaptureProcess(null);
-					setNativeCaptureTargetPath(null);
-					setNativeCaptureSystemAudioPath(null);
-					setNativeCaptureMicrophonePath(null);
-					setNativeCaptureStopRequested(false);
-					setNativeCapturePaused(false);
-					return {
-						success: false,
-						message:
-							"Microphone permission not granted. Please allow access in System Settings.",
-						userNotified: true,
-					};
+					reportSetupPermissionFailure(permissionFailure);
+					openRecordingSetup();
+					return { success: false, message: "recording-environment-not-ready", userNotified: true };
 				}
 
 				recordNativeCaptureDiagnostics({

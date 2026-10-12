@@ -142,6 +142,8 @@ export function registerSettingsHandlers() {
 					typeof parsed.microphoneDeviceId === "string"
 						? parsed.microphoneDeviceId
 						: undefined,
+				microphoneDeviceLabel: typeof parsed.microphoneDeviceLabel === "string" ? parsed.microphoneDeviceLabel : undefined,
+				webcamDeviceLabel: typeof parsed.webcamDeviceLabel === "string" ? parsed.webcamDeviceLabel : undefined,
 				systemAudioEnabled: parsed.systemAudioEnabled === true,
 				webcamEnabled: parsed.webcamEnabled === true,
 				webcamDeviceId:
@@ -166,6 +168,7 @@ export function registerSettingsHandlers() {
 	ipcMain.handle("set-recording-preferences", async (_, prefs: RecordingPreferencesPatch) => {
 		try {
 			await recordingPreferencesStore.update(prefs);
+			BrowserWindow.getAllWindows().forEach((window) => { if (!window.isDestroyed()) window.webContents.send("recording-preferences-changed"); });
 			return { success: true };
 		} catch (error) {
 			console.error("Failed to save recording preferences:", error);

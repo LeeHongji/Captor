@@ -2,6 +2,7 @@ import { Card } from "@heroui/react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useI18n } from "./contexts/I18nContext";
 import { EditorLoadingSkeleton } from "./components/video-editor/layout/EditorLoadingSkeleton";
+import { RecordingSetupGate } from "./components/recording-setup/RecordingSetupGate";
 
 const HudWindow = lazy(() => import("./components/launch/HudWindow"));
 const SourceSelector = lazy(() =>
@@ -81,7 +82,7 @@ export default function App() {
 			content = <UpdateToastWindow />;
 			break;
 		case "editor":
-			content = <EditorWindow />;
+			content = <RecordingSetupGate><EditorWindow /></RecordingSetupGate>;
 			break;
 		default:
 			content = (

@@ -82,6 +82,7 @@ function load() {
 	return loaded;
 }
 const model = createPrompterModelStore(directory, (status) => send("prompter:model", status));
+export function getPrompterModelStatus() { return model.status(); }
 
 export function isTrustedPrompterSender(
 	event: Pick<IpcMainInvokeEvent, "sender" | "senderFrame">,

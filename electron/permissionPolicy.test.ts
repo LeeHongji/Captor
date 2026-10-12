@@ -196,3 +196,48 @@ describe("shouldGrantDisplayCapture", () => {
 		);
 	});
 });
+describe("setup editor media", () => {
+	const url = "http://127.0.0.1:43127/?windowType=editor";
+	const request = {
+		permission: "media",
+		isTrustedCaptureWindow: true,
+		isMainFrame: true,
+		currentDocumentUrl: url,
+		requestingUrl: url,
+		securityOrigins: ["http://127.0.0.1:43127"],
+	};
+	it("accepts only an explicitly leased editor document", () => {
+		expect(shouldGrantMediaPermission(request, TRUSTED_DOCUMENT_BASE_URLS, "editor")).toBe(
+			true,
+		);
+		expect(
+			shouldGrantMediaPermission(
+				{ ...request, isTrustedCaptureWindow: false },
+				TRUSTED_DOCUMENT_BASE_URLS,
+				"editor",
+			),
+		).toBe(false);
+		expect(
+			shouldGrantMediaPermission(
+				{ ...request, isMainFrame: false },
+				TRUSTED_DOCUMENT_BASE_URLS,
+				"editor",
+			),
+		).toBe(false);
+		expect(
+			shouldGrantMediaPermission(
+				{ ...request, securityOrigins: ["http://127.0.0.1:43128"] },
+				TRUSTED_DOCUMENT_BASE_URLS,
+				"editor",
+			),
+		).toBe(false);
+	});
+	it("does not give the editor HUD display capture privileges", () => {
+		expect(
+			shouldGrantDisplayCapture(
+				{ ...request, securityOrigin: request.securityOrigins[0], videoRequested: true },
+				TRUSTED_DOCUMENT_BASE_URLS,
+			),
+		).toBe(false);
+	});
+});

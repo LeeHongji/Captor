@@ -250,6 +250,8 @@ function getInitialLocale(): AppLocale {
 	if (typeof window === "undefined") {
 		return DEFAULT_LOCALE;
 	}
+	const appLocale = window.electronAPI?.getAppSetting?.("appLocale");
+	if (typeof appLocale === "string") return normalizeLocale(appLocale);
 
 	const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
 	if (storedLocale) {
@@ -314,6 +316,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 		setLocaleState(nextLocale);
 		if (typeof window !== "undefined") {
 			window.localStorage.setItem(LOCALE_STORAGE_KEY, nextLocale);
+			window.electronAPI?.setAppSetting?.("appLocale", nextLocale);
 		}
 	}, []);
 

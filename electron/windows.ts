@@ -676,9 +676,10 @@ export function createHudOverlayWindow(): BrowserWindow {
 	if (VITE_DEV_SERVER_URL) {
 		win.loadURL(VITE_DEV_SERVER_URL + "?windowType=hud-overlay");
 	} else {
-		win.loadFile(path.join(RENDERER_DIST, "index.html"), {
-			query: { windowType: "hud-overlay" },
-		});
+		// Device IDs are origin-scoped. The macOS setup editor and capture HUD must share one origin.
+		const base = process.platform === "darwin" ? getPackagedRendererBaseUrl() : null;
+		if (base) void win.loadURL(new URL("?windowType=hud-overlay", base).href);
+		else win.loadFile(path.join(RENDERER_DIST, "index.html"), { query: { windowType: "hud-overlay" } });
 	}
 
 	return win;

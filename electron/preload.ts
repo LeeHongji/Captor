@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { TeleprompterAPI } from "../src/types/teleprompter";
+import type { RecordingSetupAPI } from "../src/types/recordingSetup";
 import type { RecordingSessionData } from "./ipc/types";
 
 const prompterSubscription = <T>(channel: string, listener: (value: T) => void) => {
@@ -7,6 +8,33 @@ const prompterSubscription = <T>(channel: string, listener: (value: T) => void) 
 	ipcRenderer.on(channel, receive);
 	return () => ipcRenderer.removeListener(channel, receive);
 };
+contextBridge.exposeInMainWorld("recordingSetupAPI", {
+	snapshot: () => ipcRenderer.invoke("setup:snapshot"),
+	startupRequired: () => ipcRenderer.invoke("setup:startup"),
+	request: (permission) => ipcRenderer.invoke("setup:request", permission),
+	repair: (permission, confirmed) => ipcRenderer.invoke("setup:repair", permission, confirmed),
+	save: (step, choices, completed) => ipcRenderer.invoke("setup:save", step, choices, completed),
+	open: () => ipcRenderer.invoke("setup:open"),
+	restart: () => ipcRenderer.invoke("setup:restart"),
+	onOpen: (listener) => prompterSubscription("setup:open", listener),
+	acknowledgeOpen: () => ipcRenderer.invoke("setup:ack-open"),
+	startMedia: (kind) => ipcRenderer.invoke("setup:media-start", kind),
+	stopMedia: (kind) => ipcRenderer.invoke("setup:media-stop", kind),
+	mediaResult: (kind, success) => ipcRenderer.invoke("setup:media-result", kind, success),
+	startTrial: () => ipcRenderer.invoke("setup:trial-start"),
+	cancelTrial: () => ipcRenderer.invoke("setup:trial-cancel"),
+	finishTrial: () => ipcRenderer.invoke("setup:trial-finish"),
+	trialChoices: () => ipcRenderer.invoke("setup:trial-choices"),
+	reportFailure: (permission) => ipcRenderer.invoke("setup:failure", permission),
+	exportBusy: (busy) => ipcRenderer.send("setup:export-busy", busy),
+	testMouse: () => ipcRenderer.invoke("setup:mouse-test"),
+	trialStatus: () => ipcRenderer.invoke("setup:trial-status"),
+	onStopTrial: (listener) => prompterSubscription("setup:stop-trial", listener),
+	startVoiceTest: (language) => ipcRenderer.invoke("setup:voice-start", language),
+	stopVoiceTest: (id) => ipcRenderer.invoke("setup:voice-stop", id),
+	pushVoiceAudio: (id, samples) => ipcRenderer.send("setup:voice-audio", id, samples),
+	onVoiceResult: (listener) => prompterSubscription("setup:voice-result", listener),
+} satisfies RecordingSetupAPI);
 contextBridge.exposeInMainWorld("teleprompterAPI", {
 	getState: () => ipcRenderer.invoke("prompter:get"),
 	saveDraft: (draft) => ipcRenderer.invoke("prompter:save", draft),
@@ -579,6 +607,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 			capturesSystemAudio?: boolean;
 			capturesMicrophone?: boolean;
 			microphoneDeviceId?: string;
+		microphoneDeviceLabel?: string;
 			microphoneLabel?: string;
 		},
 	) => {
@@ -1090,13 +1119,16 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getAppVersion: () => ipcRenderer.invoke("app:getVersion"),
 	getAnnouncements: () => ipcRenderer.invoke("announcements:get"),
 	getRecordingPreferences: () => ipcRenderer.invoke("get-recording-preferences"),
+	onRecordingPreferencesChanged: (listener: () => void) => prompterSubscription("recording-preferences-changed", listener),
 	getRecordingAudioLabConfig: () => ipcRenderer.invoke("get-recording-audio-lab-config"),
 	setRecordingPreferences: (prefs: {
 		microphoneEnabled?: boolean;
 		microphoneDeviceId?: string;
+		microphoneDeviceLabel?: string;
 		systemAudioEnabled?: boolean;
 		webcamEnabled?: boolean;
 		webcamDeviceId?: string;
+		webcamDeviceLabel?: string;
 	}) => ipcRenderer.invoke("set-recording-preferences", prefs),
 	getCountdownDelay: () => ipcRenderer.invoke("get-countdown-delay"),
 	setCountdownDelay: (delay: number) => ipcRenderer.invoke("set-countdown-delay", delay),

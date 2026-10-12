@@ -25,6 +25,8 @@ Download the Apple Silicon (`arm64`) or Intel (`x64`) DMG from [Captor Releases]
 
 The current manual-installation build is ad-hoc signed and not notarized. After a blocked first launch, open System Settings → Privacy & Security → Open Anyway for Captor. Managed Macs may restrict this option. Captor checks for new releases; save your work and quit before replacing the app with a newer installer. Automatic installation will be enabled for future Developer ID signed releases.
 
+On first launch, the recording environment wizard checks this installation, guides permissions and device tests, and verifies a five-second recording. Optional camera, microphone recording and voice following can be explicitly disabled. If a permission toggle is enabled but access still fails after an update, use Settings → Check recording environment to repair that specific Captor authorization; projects, scripts and media are preserved.
+
 ## Run from source
 
 Use Node.js 22.12 or newer. Platform build requirements:

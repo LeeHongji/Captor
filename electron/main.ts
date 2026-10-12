@@ -1,3 +1,5 @@
+import { hasActiveExportStreams } from "./ipc/export/exportStream";
+import { nativeVideoExportSessions, nativeStaticLayoutExportSessions } from "./ipc/export/native-video";
 import { hasUnsavedRecordingDraft, clearUnsavedRecordingDraft } from "./teleprompter/controller";
 import { createSaveBeforeCloseController } from "./saveBeforeClose";
 import { clearRecordingTrashUndo } from "./ipc/recording/library";
@@ -32,6 +34,7 @@ import { ensureMediaServer } from "./mediaServer";
 import { hardenWebContentsNavigation, shouldHardenWebContentsType } from "./navigationPolicy";
 import { shouldGrantDisplayCapture, shouldGrantMediaPermission } from "./permissionPolicy";
 import { ensurePackagedRendererServer, getPackagedRendererBaseUrl } from "./rendererServer";
+import { hasSetupMediaLease, registerRecordingSetupHandlers, shouldShowSetupAtStartup, setupRecordingStateChanged } from "./recordingSetup/service";
 import {
 	checkForAppUpdates,
 	deferUpdateReminder,
@@ -914,10 +917,12 @@ app.whenReady().then(async () => {
 
 	session.defaultSession.setPermissionCheckHandler(
 		(webContents, permission, requestingOrigin, details) => {
+			const nativeAllowed = process.platform !== "darwin" || (details.mediaType === "audio" || details.mediaType === "video" ? systemPreferences.getMediaAccessStatus(details.mediaType === "audio" ? "microphone" : "camera") === "granted" : systemPreferences.getMediaAccessStatus("microphone") === "granted" || systemPreferences.getMediaAccessStatus("camera") === "granted");
+			if (!nativeAllowed) return false;
 			return shouldGrantMediaPermission(
 				{
 					permission,
-					isTrustedCaptureWindow: isHudWebContents(webContents),
+					isTrustedCaptureWindow: isHudWebContents(webContents) || (!!webContents && hasSetupMediaLease(webContents.id, details.mediaType)),
 					isMainFrame: details.isMainFrame,
 					currentDocumentUrl: webContents?.getURL() ?? "",
 					// Electron 39 may supply the last committed document URL, including its
@@ -927,6 +932,7 @@ app.whenReady().then(async () => {
 						details.securityOrigin === undefined ? [] : [details.securityOrigin],
 				},
 				getTrustedCaptureDocumentBaseUrls(),
+				isHudWebContents(webContents) ? "hud-overlay" : "editor",
 			);
 		},
 	);
@@ -934,18 +940,21 @@ app.whenReady().then(async () => {
 	session.defaultSession.setPermissionRequestHandler(
 		(webContents, permission, callback, details) => {
 			const securityOrigin = "securityOrigin" in details ? details.securityOrigin : undefined;
+			const mediaTypes = "mediaTypes" in details ? details.mediaTypes : undefined;
+			const nativeMediaAllowed = process.platform !== "darwin" || (!!mediaTypes?.length && mediaTypes.every((kind) => systemPreferences.getMediaAccessStatus(kind === "audio" ? "microphone" : "camera") === "granted"));
 
 			callback(
-				shouldGrantMediaPermission(
+				nativeMediaAllowed && shouldGrantMediaPermission(
 					{
 						permission,
-						isTrustedCaptureWindow: isHudWebContents(webContents),
+						isTrustedCaptureWindow: isHudWebContents(webContents) || (!!mediaTypes?.length && mediaTypes.every((kind) => hasSetupMediaLease(webContents.id, kind))),
 						isMainFrame: details.isMainFrame,
 						currentDocumentUrl: webContents.getURL(),
 						requestingUrl: details.requestingUrl,
 						securityOrigins: securityOrigin === undefined ? [] : [securityOrigin],
 					},
 					getTrustedCaptureDocumentBaseUrls(),
+					isHudWebContents(webContents) ? "hud-overlay" : "editor",
 				),
 			);
 		},
@@ -1020,6 +1029,7 @@ app.whenReady().then(async () => {
 		() => mainWindow,
 		() => sourceSelectorWindow,
 		(recording: boolean, sourceName: string) => {
+			setupRecordingStateChanged(recording);
 			selectedSourceName = sourceName;
 			setHudOverlayRecordingActive(recording);
 			if (shouldUseTray()) {
@@ -1034,6 +1044,7 @@ app.whenReady().then(async () => {
 			}
 		},
 	);
+	registerRecordingSetupHandlers({ openEditor: createEditorWindowWrapper, canRestart: () => !hasActiveExportStreams() && nativeVideoExportSessions.size === 0 && nativeStaticLayoutExportSessions.size === 0 && !editorHasUnsavedChanges && !BrowserWindow.getAllWindows().some((window) => hasUnsavedRecordingDraft(window.webContents.id)) });
 
 	if (IS_SMOKE_EXPORT || process.env.CAPTOR_DEV_OPEN_RECORDING_INPUT) {
 		await logSmokeExportGpuDiagnostics();
@@ -1052,7 +1063,8 @@ app.whenReady().then(async () => {
 		return;
 	}
 
-	createWindow();
+	if (await shouldShowSetupAtStartup()) createEditorWindowWrapper();
+	else createWindow();
 	setupAutoUpdates(getUpdateDialogWindow, sendUpdateToastToWindows);
 	if (IS_DEV && process.env.CAPTOR_DEV_PREVIEW_UPDATE === "1") {
 		setTimeout(() => {

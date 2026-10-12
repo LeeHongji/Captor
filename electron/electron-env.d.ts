@@ -253,6 +253,7 @@ interface Window {
 				capturesSystemAudio?: boolean;
 				capturesMicrophone?: boolean;
 				microphoneDeviceId?: string;
+		microphoneDeviceLabel?: string;
 				microphoneLabel?: string;
 			},
 		) => Promise<{
@@ -976,13 +977,16 @@ interface Window {
 		/** Hide the OS cursor before browser capture starts. */
 		hideOsCursor: () => Promise<{ success: boolean }>;
 		/** Recording preferences (mic, system audio, webcam) */
+		onRecordingPreferencesChanged: (listener: () => void) => () => void;
 		getRecordingPreferences: () => Promise<{
 			success: boolean;
 			microphoneEnabled: boolean;
 			microphoneDeviceId?: string;
+		microphoneDeviceLabel?: string;
 			systemAudioEnabled: boolean;
 			webcamEnabled: boolean;
 			webcamDeviceId?: string;
+		webcamDeviceLabel?: string;
 		}>;
 		getRecordingAudioLabConfig: () => Promise<{
 			browserMicrophoneProfile: string;
@@ -991,9 +995,11 @@ interface Window {
 		setRecordingPreferences: (prefs: {
 			microphoneEnabled?: boolean;
 			microphoneDeviceId?: string;
+		microphoneDeviceLabel?: string;
 			systemAudioEnabled?: boolean;
 			webcamEnabled?: boolean;
 			webcamDeviceId?: string;
+		webcamDeviceLabel?: string;
 		}) => Promise<{ success: boolean; error?: string }>;
 		/** Countdown timer before recording */
 		getCountdownDelay: () => Promise<{ success: boolean; delay: number }>;

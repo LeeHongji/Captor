@@ -1,3 +1,5 @@
+import { resolveSetupDevice } from "@/lib/setupDevice";
+import { setupIsReady } from "@/types/recordingSetup";
 import { acquireRecordingMicrophone } from "../lib/recordingMicrophone";
 import { fixWebmDuration } from "@fix-webm-duration/fix";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -412,7 +414,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	const hasPromptedForReselect = useRef(false);
 	const hasShownNativeWindowsFallbackToast = useRef(false);
 	const countdownDelayLoaded = useRef(false);
-	const recordingPrefsLoaded = useRef(false);
+
 	const pendingWebcamPathPromise = useRef<Promise<string | null> | null>(null);
 	const webcamStopPromise = useRef<Promise<string | null> | null>(null);
 	const webcamStopResolver = useRef<((path: string | null) => void) | null>(null);
@@ -439,16 +441,13 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	const microphoneRelease = useRef<(() => void) | null>(null);
 	const fallbackMicrophoneRelease = useRef<(() => void) | null>(null);
 	const captureSharedMicrophone = useRef(false);
-	const acquireListeningMicrophone = useCallback(
-		() =>
-			acquireRecordingMicrophone(
-				createProcessedMicrophoneConstraints(
-					microphoneDeviceId,
-					browserMicrophoneProfile.current,
-				),
-			),
-		[microphoneDeviceId],
-	);
+	const setupTrialChoices = useRef<import("@/types/recordingSetup").SetupChoices | null>(null);
+	const acquireListeningMicrophone = useCallback(async () => {
+		const prefs = await window.electronAPI.getRecordingPreferences();
+		const devices = await navigator.mediaDevices.enumerateDevices();
+		const deviceId = resolveSetupDevice(devices, "audioinput", prefs.microphoneDeviceId, prefs.microphoneDeviceLabel);
+		return acquireRecordingMicrophone(createProcessedMicrophoneConstraints(deviceId, browserMicrophoneProfile.current));
+	}, []);
 	useEffect(() => {
 		const phase = finalizing
 			? "finalizing"
@@ -581,41 +580,22 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		if (platform !== "darwin") {
 			return true;
 		}
+		if (window.recordingSetupAPI) {
+			const snapshot = await window.recordingSetupAPI.snapshot();
+			const ready = !snapshot.busy && setupIsReady(snapshot, {
+				microphone: microphoneEnabled,
+				camera: webcamEnabled,
+				systemAudio: systemAudioEnabled,
+				voiceFollow: captureSharedMicrophone.current,
+			});
+			if (!ready && !options.startup) await window.recordingSetupAPI.open();
+			return ready;
+		}
 
 		const screenPermission = await window.electronAPI.getScreenRecordingPermissionStatus();
-		if (!screenPermission.success || screenPermission.status !== "granted") {
-			await window.electronAPI.openScreenRecordingPreferences();
-			alert(
-				options.startup
-					? "Captor needs Screen Recording permission before you start. System Settings has been opened. After enabling it, quit and reopen Captor."
-					: "Screen Recording permission is still missing. System Settings has been opened again. Enable it, then quit and reopen Captor before recording.",
-			);
-			return false;
-		}
-
-		const accessibilityPermission = await window.electronAPI.getAccessibilityPermissionStatus();
-		if (!accessibilityPermission.success) {
-			return false;
-		}
-
-		if (accessibilityPermission.trusted) {
-			return true;
-		}
-
-		const requestedAccessibility = await window.electronAPI.requestAccessibilityPermission();
-		if (requestedAccessibility.success && requestedAccessibility.trusted) {
-			return true;
-		}
-
-		await window.electronAPI.openAccessibilityPreferences();
-		alert(
-			options.startup
-				? "Captor also needs Accessibility permission for cursor tracking. System Settings has been opened. After enabling it, quit and reopen Captor."
-				: "Accessibility permission is still missing. System Settings has been opened again. Enable it, then quit and reopen Captor before recording.",
-		);
-
-		return false;
-	}, []);
+		const accessibility = await window.electronAPI.getAccessibilityPermissionStatus();
+		return screenPermission.success && screenPermission.status === "granted" && accessibility.success && accessibility.trusted;
+	}, [microphoneEnabled, webcamEnabled, systemAudioEnabled]);
 
 	const selectMimeType = useCallback(() => {
 		return selectRecordingMimeType();
@@ -799,6 +779,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			}
 
 			setFinalizing(false);
+			await window.recordingSetupAPI?.finishTrial();
 			await window.electronAPI.switchToEditor();
 			console.log(
 				`[PERF:RENDERER] Finalize Session & Switch to Editor: COMPLETED in ${(performance.now() - start).toFixed(2)}ms`,
@@ -1133,6 +1114,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				}
 			};
 		} catch (error) {
+			if (setupTrialChoices.current?.camera && window.recordingSetupAPI) { await window.recordingSetupAPI.reportFailure("camera"); throw Error("recording-environment-not-ready"); }
 			console.warn(
 				"Failed to start webcam recording; continuing without webcam layer:",
 				error,
@@ -1221,6 +1203,13 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			}
 		}
 
+		if (platform === "darwin" && window.recordingSetupAPI) {
+			const inputs = await navigator.mediaDevices.enumerateDevices();
+			const microphoneNeeded = microphoneEnabled || captureSharedMicrophone.current || setupTrialChoices.current?.voiceFollow;
+			if (microphoneNeeded) { const prefs = await window.electronAPI.getRecordingPreferences(); try { resolveSetupDevice(inputs, "audioinput", prefs.microphoneDeviceId, prefs.microphoneDeviceLabel); } catch { await window.recordingSetupAPI.reportFailure("microphone"); await window.recordingSetupAPI.open(); return null; } }
+			if (microphoneNeeded && microphoneDeviceId && !inputs.some((device) => device.kind === "audioinput" && device.deviceId === microphoneDeviceId)) { await window.recordingSetupAPI.reportFailure("microphone"); await window.recordingSetupAPI.open(); return null; }
+			if (webcamEnabled && webcamDeviceId && !inputs.some((device) => device.kind === "videoinput" && device.deviceId === webcamDeviceId)) { await window.recordingSetupAPI.reportFailure("camera"); await window.recordingSetupAPI.open(); return null; }
+		}
 		let micLabel: string | undefined;
 		if ((useNativeMacScreenCapture || useNativeWindowsCapture) && microphoneEnabled) {
 			try {
@@ -1245,6 +1234,8 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		logNativeCaptureDiagnostics,
 		microphoneDeviceId,
 		microphoneEnabled,
+		webcamEnabled,
+		webcamDeviceId,
 		preparePermissions,
 		prepareWebcamRecorder,
 		resetRecordingClock,
@@ -1556,23 +1547,25 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	}, []);
 
 	useEffect(() => {
-		if (recordingPrefsLoaded.current) return;
-		recordingPrefsLoaded.current = true;
-
-		void (async () => {
+		let current = true;
+		let generation = 0;
+		const load = async () => {
+			const token = ++generation;
 			const result = await window.electronAPI.getRecordingPreferences();
-			if (result.success) {
-				setMicrophoneEnabled(result.microphoneEnabled);
-				if (result.microphoneDeviceId) {
-					setMicrophoneDeviceId(result.microphoneDeviceId);
-				}
-				setSystemAudioEnabled(result.systemAudioEnabled);
-				setWebcamEnabled(result.webcamEnabled);
-				if (result.webcamDeviceId) {
-					setWebcamDeviceId(result.webcamDeviceId);
-				}
-			}
-		})();
+			if (!result.success) return;
+			const devices = await navigator.mediaDevices.enumerateDevices();
+			if (!current || token !== generation) return;
+			try {
+				setMicrophoneDeviceId(resolveSetupDevice(devices, "audioinput", result.microphoneEnabled ? result.microphoneDeviceId : undefined, result.microphoneEnabled ? result.microphoneDeviceLabel : undefined));
+				setWebcamDeviceId(resolveSetupDevice(devices, "videoinput", result.webcamEnabled ? result.webcamDeviceId : undefined, result.webcamEnabled ? result.webcamDeviceLabel : undefined));
+			} catch { await window.recordingSetupAPI?.open(); return; }
+			setMicrophoneEnabled(result.microphoneEnabled);
+			setSystemAudioEnabled(result.systemAudioEnabled);
+			setWebcamEnabled(result.webcamEnabled);
+		};
+		void load();
+		const unsubscribe = window.electronAPI.onRecordingPreferencesChanged?.(() => void load());
+		return () => { current = false; unsubscribe?.(); };
 	}, []);
 
 	const persistMicrophoneEnabled = useCallback((enabled: boolean) => {
@@ -1582,7 +1575,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 	const persistMicrophoneDeviceId = useCallback((deviceId: string | undefined) => {
 		setMicrophoneDeviceId(deviceId);
-		void window.electronAPI.setRecordingPreferences({ microphoneDeviceId: deviceId });
+		void window.electronAPI.setRecordingPreferences({ microphoneDeviceId: deviceId, microphoneDeviceLabel: "" });
 	}, []);
 
 	const persistSystemAudioEnabled = useCallback((enabled: boolean) => {
@@ -1597,7 +1590,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 	const persistWebcamDeviceId = useCallback((deviceId: string | undefined) => {
 		setWebcamDeviceId(deviceId);
-		void window.electronAPI.setRecordingPreferences({ webcamDeviceId: deviceId });
+		void window.electronAPI.setRecordingPreferences({ webcamDeviceId: deviceId, webcamDeviceLabel: "" });
 	}, []);
 
 	useEffect(() => {
@@ -1715,6 +1708,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 		setStarting(true);
 
 		try {
+			setupTrialChoices.current = await window.recordingSetupAPI?.trialChoices() ?? null;
 			const prompterState = await window.teleprompterAPI?.getState();
 			captureSharedMicrophone.current = !!(
 				prompterState?.armed && prompterState.draft.voiceFollow
@@ -1742,6 +1736,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			const { selectedSource, useNativeMacScreenCapture, useNativeWindowsCapture, micLabel } =
 				preparedStart;
 			const useNativeCapture = useNativeMacScreenCapture || useNativeWindowsCapture;
+			const browserMicForSelectedDevice = useNativeMacScreenCapture && !!microphoneDeviceId;
 			const shouldWarmStartNativeCapture = useNativeCapture && countdownDelay > 0;
 			if (countdownDelay > 0 && !shouldWarmStartNativeCapture) {
 				setCountdownActive(true);
@@ -1766,7 +1761,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					selectedSource,
 					{
 						capturesSystemAudio: systemAudioEnabled,
-						capturesMicrophone: microphoneEnabled && !captureSharedMicrophone.current,
+						capturesMicrophone: microphoneEnabled && !captureSharedMicrophone.current && !browserMicForSelectedDevice,
 						microphoneDeviceId,
 						microphoneLabel: micLabel,
 					},
@@ -1875,7 +1870,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 					// record mic via browser getUserMedia as a sidecar file.
 					if (
 						(nativeResult.microphoneFallbackRequired ||
-							captureSharedMicrophone.current) &&
+							captureSharedMicrophone.current || browserMicForSelectedDevice) &&
 						microphoneEnabled
 					) {
 						void logNativeCaptureDiagnostics("start-browser-microphone-fallback");
@@ -1930,6 +1925,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 							micFallbackRecorderMetadata.current = null;
 							resetMicFallbackTimingDiagnostics();
 							console.warn("Browser microphone fallback failed:", micError);
+							if (useNativeMacScreenCapture && window.recordingSetupAPI) { await window.recordingSetupAPI.reportFailure("microphone"); throw Error("recording-environment-not-ready"); }
 							const permissionDenied =
 								micError instanceof DOMException &&
 								(micError.name === "NotAllowedError" ||
@@ -2310,7 +2306,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			}
 		} catch (error) {
 			console.error("Failed to start recording:", error);
-			alert(
+			if (!(error instanceof Error && error.message === "recording-environment-not-ready")) alert(
 				error instanceof Error
 					? `Failed to start recording: ${error.message}`
 					: "Failed to start recording",
@@ -2327,6 +2323,7 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				cleanupCapturedMedia();
 				await stopWebcamRecorder();
 			}
+			if (error instanceof Error && error.message === "recording-environment-not-ready") await window.recordingSetupAPI?.open();
 		} finally {
 			try {
 				await window.electronAPI.finishRecordingStartup();

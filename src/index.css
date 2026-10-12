@@ -311,3 +311,5 @@
 		--launch-bar-bg: var(--surface);
 	}
 }
+
+.recording-setup-drag { -webkit-app-region: drag; }

@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 
-export function useLaunchWindowSystemState(
-	preparePermissions: (args: { startup?: boolean }) => Promise<unknown>,
-) {
+export function useLaunchWindowSystemState() {
 	const [hudOverlayMousePassthroughSupported, setHudOverlayMousePassthroughSupported] = useState<
 		boolean | null
 	>(null);
@@ -45,10 +43,6 @@ export function useLaunchWindowSystemState(
 			cancelled = true;
 		};
 	}, []);
-
-	useEffect(() => {
-		void preparePermissions({ startup: true });
-	}, [preparePermissions]);
 
 	return { hudOverlayMousePassthroughSupported, platform };
 }

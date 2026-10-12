@@ -1,3 +1,4 @@
+import { RecordingEnvironmentSettings } from "@/components/recording-setup/RecordingEnvironmentSettings";
 import { UpdateSettings } from "./UpdateSettings";
 import { SettingsSections, SettingsCategory } from "./SettingsSections";
 import { Card, RadioGroup, Radio, Label, Description } from "@heroui/react";
@@ -2252,6 +2253,7 @@ export function SettingsPanel({
 				categories={advanced ? ["general", "motion", "advanced"] : ["general", "motion"]}
 			>
 				<SettingsCategory category="general">
+					<RecordingEnvironmentSettings />
 					<SettingsRow title={t("editor.theme.appearance", "Appearance")} stacked>
 						<ChoiceGroup
 							type="single"

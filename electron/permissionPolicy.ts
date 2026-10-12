@@ -27,13 +27,12 @@ function parseUrl(value: string): URL | null {
 	}
 }
 
-function hasExactCaptureWindowQuery(url: URL): boolean {
+function hasExactCaptureWindowQuery(
+	url: URL,
+	windowType: "hud-overlay" | "editor" = CAPTURE_WINDOW_TYPE,
+): boolean {
 	const entries = [...url.searchParams.entries()];
-	return (
-		entries.length === 1 &&
-		entries[0]?.[0] === "windowType" &&
-		entries[0][1] === CAPTURE_WINDOW_TYPE
-	);
+	return entries.length === 1 && entries[0]?.[0] === "windowType" && entries[0][1] === windowType;
 }
 
 function isValidTrustedBaseUrl(url: URL): boolean {
@@ -58,6 +57,7 @@ function hasSameBaseLocation(candidate: URL, trustedBase: URL): boolean {
 export function isTrustedCaptureDocumentUrl(
 	candidateUrl: string,
 	trustedDocumentBaseUrls: readonly string[],
+	windowType: "hud-overlay" | "editor" = CAPTURE_WINDOW_TYPE,
 ): boolean {
 	const candidate = parseUrl(candidateUrl);
 	if (
@@ -65,7 +65,7 @@ export function isTrustedCaptureDocumentUrl(
 		!TRUSTED_RENDERER_PROTOCOLS.has(candidate.protocol) ||
 		candidate.username !== "" ||
 		candidate.password !== "" ||
-		!hasExactCaptureWindowQuery(candidate)
+		!hasExactCaptureWindowQuery(candidate, windowType)
 	) {
 		return false;
 	}
@@ -118,18 +118,23 @@ function isSecurityOriginForDocument(securityOrigin: string, documentUrl: string
 export function shouldGrantMediaPermission(
 	request: MediaPermissionPolicyRequest,
 	trustedDocumentBaseUrls: readonly string[],
+	windowType: "hud-overlay" | "editor" = CAPTURE_WINDOW_TYPE,
 ): boolean {
 	if (
 		request.permission !== "media" ||
 		!request.isTrustedCaptureWindow ||
 		!request.isMainFrame ||
-		!isTrustedCaptureDocumentUrl(request.currentDocumentUrl, trustedDocumentBaseUrls)
+		!isTrustedCaptureDocumentUrl(
+			request.currentDocumentUrl,
+			trustedDocumentBaseUrls,
+			windowType,
+		)
 	) {
 		return false;
 	}
 
 	if (
-		!isTrustedCaptureDocumentUrl(request.requestingUrl, trustedDocumentBaseUrls) ||
+		!isTrustedCaptureDocumentUrl(request.requestingUrl, trustedDocumentBaseUrls, windowType) ||
 		!isSameDocument(request.currentDocumentUrl, request.requestingUrl)
 	) {
 		return false;

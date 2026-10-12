@@ -10,12 +10,17 @@ on:
         required: false
         type: boolean
         default: false
+      candidate_run_id:
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
   quality:
+    if: inputs.candidate_run_id == ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,9 +33,10 @@ jobs:
       - run: node node_modules/ffmpeg-static/install.js
       - run: npm run typecheck && npm run lint && npm test && npm run i18n:check
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:ui -- tests/ui/brand-release.spec.ts tests/ui/desktop-windows.spec.ts tests/ui/teleprompter.spec.ts tests/ui/hud-layout.spec.ts tests/ui/export-error-report.spec.ts tests/ui/timeline-presentation.spec.ts --workers=2
+      - run: npm run test:ui -- tests/ui/brand-release.spec.ts tests/ui/desktop-windows.spec.ts tests/ui/teleprompter.spec.ts tests/ui/hud-layout.spec.ts tests/ui/export-error-report.spec.ts tests/ui/timeline-presentation.spec.ts tests/ui/recording-setup.spec.ts --workers=2
 
   package:
+    if: inputs.candidate_run_id == ''
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     strategy:
@@ -106,17 +112,34 @@ jobs:
           retention-days: 30
 
   publish:
-    if: inputs.publish
+    if: ${{ always() && inputs.publish && (inputs.candidate_run_id != '' || (needs.quality.result == 'success' && needs.package.result == 'success')) }}
     needs: [quality, package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           persist-credentials: false
+      - name: Validate promoted run
+        if: inputs.candidate_run_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CANDIDATE_RUN_ID" > .tmp-candidate-run.json
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const run = JSON.parse(fs.readFileSync('.tmp-candidate-run.json'));
+          if (run.status !== 'completed' || run.conclusion !== 'success' || run.event !== 'workflow_dispatch' || run.head_sha !== process.env.GITHUB_SHA || run.repository.full_name !== process.env.GITHUB_REPOSITORY || run.path !== '.github/workflows/build.yml') throw Error('Candidate run must be successful, from this repository/workflow and exact commit');
+          JS
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.candidate_run_id || github.run_id }}
           pattern: manual-macos-*
           path: .tmp/candidates
       - name: Verify candidate identity and checksums

@@ -127,3 +127,11 @@ If you need to rerun publishing for an existing tag, use the manual dispatch for
 ## Captor distribution
 
 Updates use GitHub Releases in `LeeHongji/Captor`. Publish installer/archive assets together with the generated `latest.yml`, `latest-mac.yml`, or `latest-linux.yml` metadata and blockmaps/checksums needed for the corresponding platform. macOS metadata must include both architectures when publishing both. Build and release workflows require an explicit dispatch or published Release; a source push to main does not publish a release. Homebrew and WinGet distribution are not configured. Never reuse the upstream Recordly feed or assets.
+
+### Manual candidate acceptance and promotion
+
+For the certificate-free macOS lane, build a candidate from the release branch with `publish_manual=false`. Download the `manual-macos-arm64` and `manual-macos-x64` artifacts from that successful run. Install the candidate DMG in Applications; do not use a local rebuild as the acceptance app.
+
+On a clean installation, verify the recording environment wizard, explicit permission requests, return from System Settings without repeated alerts, mouse interaction, selected microphone and camera, local voice following, and the five-second trial with playback. Also verify ordinary direct recording and script-assisted recording. macOS consent and live hardware checks require an interactive session; the packaged CI entry checks and export smoke are complementary evidence.
+
+Publish only after acceptance by dispatching the same branch commit with `manual_release=vX.Y.Z`, `publish_manual=true`, and `candidate_run_id` set to the successful candidate run. This skips rebuilding, validates the original workflow/repository/commit, and publishes those exact DMGs and checksums. Do not replace a published asset with a different build under the same version.

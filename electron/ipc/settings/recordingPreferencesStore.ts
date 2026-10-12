@@ -4,9 +4,11 @@ import { parseJsonWithByteOrderMark } from "../utils";
 export interface RecordingPreferencesPatch {
 	microphoneEnabled?: boolean;
 	microphoneDeviceId?: string;
+		microphoneDeviceLabel?: string;
 	systemAudioEnabled?: boolean;
 	webcamEnabled?: boolean;
 	webcamDeviceId?: string;
+		webcamDeviceLabel?: string;
 }
 
 export function createRecordingPreferencesStore(filePath: string) {

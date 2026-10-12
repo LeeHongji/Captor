@@ -26,10 +26,18 @@ const app = await _electron.launch({
 try {
 	const userData = await app.evaluate(({ app }) => app.getPath("userData"));
 	assert.equal(userData, profile, "Smoke must use an isolated profile");
-	const hud = await app.firstWindow();
-	hud.on("dialog", (dialog) => dialog.accept());
-	await hud.waitForLoadState("domcontentloaded");
-	await hud.evaluate(() => window.electronAPI.showProjectDashboard());
+	const initialWindow = await app.firstWindow();
+	let dialogs = 0;
+	initialWindow.on("dialog", async (dialog) => { dialogs++; await dialog.dismiss(); });
+	await initialWindow.waitForLoadState("domcontentloaded");
+	await expect(initialWindow.getByRole("heading", { name: "Prepare your recording environment" })).toBeVisible();
+	const environment = await initialWindow.evaluate(() => window.recordingSetupAPI.snapshot());
+	assert.equal(environment.runtime.binaries, true);
+	assert.equal(environment.runtime.storage, true);
+	assert.equal(environment.platform, "darwin");
+	assert.equal((await initialWindow.evaluate(() => window.recordingSetupAPI.repair("screen", false))).code, "cancelled");
+	await initialWindow.getByRole("button", { name: "View projects first", exact: true }).click();
+	assert.equal(dialogs, 0, "Setup must not produce startup permission alerts");
 	await expect
 		.poll(() => app.windows().some((page) => page.url().includes("windowType=editor")), {
 			timeout: 30_000,
@@ -55,6 +63,9 @@ try {
 		),
 		true,
 	);
+	const hud = app.windows().find((page) => page.url().includes("windowType=hud-overlay"));
+	assert.ok(hud);
+	assert.equal(new URL(hud.url()).origin, new URL(editor.url()).origin, "Device tests and capture must use the same origin");
 	await hud.evaluate(() => window.electronAPI.showProjectDashboard());
 	await editor.getByRole("button", { name: "Prepare narration", exact: true }).click();
 	await editor.getByLabel("Narration script").fill("大家好，这是正式安装包的带稿录制验证。");
@@ -75,6 +86,8 @@ try {
 		JSON.stringify({
 			arch,
 			packagedEditor: editor.url(),
+			setupEntry: true,
+			unsolicitedDialogs: dialogs,
 			directEntry: true,
 			scriptEntry: true,
 			promptControl: true,

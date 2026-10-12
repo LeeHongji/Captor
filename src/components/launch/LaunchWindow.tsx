@@ -78,7 +78,6 @@ function LaunchWindowContent() {
 		setWebcamDeviceId,
 		countdownDelay,
 		setCountdownDelay,
-		preparePermissions,
 		acquireListeningMicrophone,
 	} = useScreenRecorder();
 	useLocalVoiceFollow(prompter, acquireListeningMicrophone);
@@ -105,21 +104,8 @@ function LaunchWindowContent() {
 	} = useVideoDevices(webcamEnabled || openId === "webcam");
 
 	const { hudOverlayMousePassthroughSupported, platform } =
-		useLaunchWindowSystemState(preparePermissions);
+		useLaunchWindowSystemState();
 
-	useEffect(() => {
-		if (!selectedDeviceId) {
-			return;
-		}
-
-		setMicrophoneDeviceId(selectedDeviceId === "default" ? undefined : selectedDeviceId);
-	}, [selectedDeviceId, setMicrophoneDeviceId]);
-
-	useEffect(() => {
-		if (selectedVideoDeviceId && selectedVideoDeviceId !== "default") {
-			setWebcamDeviceId(selectedVideoDeviceId);
-		}
-	}, [selectedVideoDeviceId, setWebcamDeviceId]);
 
 	const {
 		showFloatingWebcamPreview,
@@ -192,6 +178,7 @@ function LaunchWindowContent() {
 	}, [syncSelectedSource]);
 
 	const reduceMotion = useReducedMotion();
+	useEffect(() => window.recordingSetupAPI?.onStopTrial(() => { if (recording) toggleRecording(); }), [recording, toggleRecording]);
 	const hudStateTransition = {
 		duration: reduceMotion ? 0 : 0.18,
 		ease: [0.22, 1, 0.36, 1] as const,

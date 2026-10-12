@@ -202,3 +202,5 @@ export async function cleanupAllExportStreams(): Promise<void> {
 		}),
 	);
 }
+
+export function hasActiveExportStreams() { return exportStreamSessions.size > 0; }
