@@ -123,6 +123,7 @@
 		"clickHere": "请点击这里检查鼠标交互",
 		"mouseVerified": "已收到鼠标交互",
 		"mouseFailed": "暂时无法收到鼠标事件。请检查辅助功能授权，移除旧 Captor 条目，完全退出并重新打开应用。",
-		"changeFolder": "更改录制目录"
+		"changeFolder": "更改录制目录",
+		"mouseTimeout": "没有收到鼠标点击。请重新开始测试，并在十秒内用鼠标或触控板点击测试框。"
 	}
 }

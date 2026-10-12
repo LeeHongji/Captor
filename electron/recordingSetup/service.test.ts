@@ -20,6 +20,7 @@ const m = vi.hoisted(() => ({
 	relaunch: vi.fn(),
 	quit: vi.fn(),
 	prefs: "{}",
+	mouseOutcome: "detected",
 }));
 vi.mock("electron", () => ({
 	app: {
@@ -111,7 +112,7 @@ vi.mock("./voiceTest", () => ({
 vi.mock("./mouseTest", () => ({
 	hasSetupMouseTest: () => false,
 	stopSetupMouseTest: vi.fn(),
-	testSetupMouse: async () => true,
+	testSetupMouse: async () => m.mouseOutcome,
 }));
 const choices = { microphone: false, camera: false, systemAudio: false, voiceFollow: false };
 const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform")!;
@@ -128,6 +129,7 @@ beforeEach(async () => {
 	m.capturing = false;
 	m.path = null;
 	m.prefs = "{}";
+	m.mouseOutcome = "detected";
 	m.trusted = true;
 	m.dirty = false;
 	m.ax = false;
@@ -152,11 +154,12 @@ it("reads startup and denied status without requesting permission, opening Setti
 	expect(m.relaunch).not.toHaveBeenCalled();
 	expect(m.axCheck.mock.calls.every(([prompt]) => prompt === false)).toBe(true);
 });
-it("requests Accessibility only on a click and opens Settings on later explicit attempts", async () => {
+it("requests Accessibility only once and opens Settings on every explicit click", async () => {
 	await call("request", "accessibility");
 	await call("request", "accessibility");
 	expect(m.axCheck.mock.calls.filter(([prompt]) => prompt === true)).toHaveLength(1);
-	expect(m.shell).toHaveBeenCalledExactlyOnceWith("settings:accessibility");
+	expect(m.shell).toHaveBeenCalledTimes(2);
+	expect(m.shell).toHaveBeenLastCalledWith("settings:accessibility");
 });
 it("retains a reported verification failure when the OS still reports granted", async () => {
 	m.media = "granted";
@@ -343,4 +346,27 @@ it("checks unsaved work before the wizard applies its final draft and preference
 	expect((await call("can-finish")).success).toBe(false);
 	m.dirty = false;
 	expect((await call("can-finish")).success).toBe(true);
+});
+
+it("does not label an authorized permission as broken when no click arrives before timeout", async () => {
+	m.ax = true;
+	m.mouseOutcome = "no-events";
+	expect((await call("mouse-test")).code).toBe("mouse-test-timeout");
+	expect((await call<SetupSnapshot>("snapshot")).verificationFailures).not.toContain(
+		"accessibility",
+	);
+});
+it("retains actionable recovery for an actually unavailable event tap", async () => {
+	m.ax = true;
+	m.mouseOutcome = "unavailable";
+	expect((await call("mouse-test")).code).toBe("mouse-test-failed");
+	expect((await call<SetupSnapshot>("snapshot")).verificationFailures).toContain("accessibility");
+});
+it("does not change permission verification when the mouse test is cancelled", async () => {
+	m.ax = true;
+	m.mouseOutcome = "cancelled";
+	expect((await call("mouse-test")).code).toBe("cancelled");
+	expect((await call<SetupSnapshot>("snapshot")).verificationFailures).not.toContain(
+		"accessibility",
+	);
 });

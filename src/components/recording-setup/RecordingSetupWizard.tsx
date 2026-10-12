@@ -159,13 +159,15 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 			const code = error instanceof Error ? error.message : "check-failed";
 			setError(
 				t(
-					code === "mouse-test-failed"
-						? "setup.mouseFailed"
-						: code === "save-work-first"
-							? "setup.saveWorkFirst"
-							: code === "environment-not-ready"
-								? "setup.environmentNotReady"
-								: "setup.actionFailed",
+					code === "mouse-test-timeout"
+						? "setup.mouseTimeout"
+						: code === "mouse-test-failed"
+							? "setup.mouseFailed"
+							: code === "save-work-first"
+								? "setup.saveWorkFirst"
+								: code === "environment-not-ready"
+									? "setup.environmentNotReady"
+									: "setup.actionFailed",
 				),
 			);
 		} finally {

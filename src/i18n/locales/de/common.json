@@ -123,6 +123,7 @@
 		"clickHere": "Click here to check mouse interaction",
 		"mouseVerified": "Mouse interaction received",
 		"mouseFailed": "Mouse events are unavailable. Check Accessibility, remove old Captor entries, then quit and reopen the app.",
-		"changeFolder": "Change recordings folder"
+		"changeFolder": "Change recordings folder",
+		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds."
 	}
 }

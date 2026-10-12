@@ -370,6 +370,7 @@ export function registerRecordingSetupHandlers(options: {
 						) {
 							requestedPermissions.add(permission);
 							systemPreferences.isTrustedAccessibilityClient(true);
+							await shell.openExternal(getMacPrivacySettingsUrl("accessibility"));
 						} else if (permission === "screen" && status === "not-determined")
 							await desktopCapturer.getSources({
 								types: ["screen"],
@@ -493,12 +494,20 @@ export function registerRecordingSetupHandlers(options: {
 		assertSender(event, ["editor"]);
 		if ((await getSetupSnapshot()).busy || permissionStatus("accessibility") !== "granted")
 			return { success: false, code: "permission-not-active" };
-		const success = await testSetupMouse(event.sender);
+		const outcome = await testSetupMouse(event.sender);
+		const success = outcome === "detected";
 		if (success) verificationFailures.delete("accessibility");
-		else reportSetupPermissionFailure("accessibility");
+		else if (outcome === "unavailable") reportSetupPermissionFailure("accessibility");
 		return {
 			success,
-			code: success ? undefined : "mouse-test-failed",
+			code:
+				outcome === "cancelled"
+					? "cancelled"
+					: success
+						? undefined
+						: outcome === "no-events"
+							? "mouse-test-timeout"
+							: "mouse-test-failed",
 			snapshot: await getSetupSnapshot(),
 		};
 	});
