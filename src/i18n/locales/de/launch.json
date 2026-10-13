@@ -54,7 +54,9 @@
 			"upToDateTitle": "Captor {{version}} ist auf dem neuesten Stand.",
 			"availableTitle": "Captor {{version}} ist verfügbar.",
 			"availableGenericTitle": "Ein Update ist verfügbar."
-		}
+		},
+		"loadingPreferences": "Aufnahmeeinstellungen werden geladen…",
+		"preferencesUnavailable": "Aufnahmeeinstellungen nicht verfügbar. Prüfe die Aufnahmeumgebung oder öffne die Steuerung erneut."
 	},
 	"sourceSelector": {
 		"loadingSources": "Quellen werden geladen...",

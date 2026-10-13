@@ -33,7 +33,7 @@ jobs:
       - run: node node_modules/ffmpeg-static/install.js
       - run: npm run typecheck && npm run lint && npm test && npm run i18n:check
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:ui -- tests/ui/brand-release.spec.ts tests/ui/desktop-windows.spec.ts tests/ui/teleprompter.spec.ts tests/ui/hud-layout.spec.ts tests/ui/export-error-report.spec.ts tests/ui/timeline-presentation.spec.ts tests/ui/recording-setup.spec.ts tests/ui/recording-trial-finalization.spec.ts tests/ui/camera-permissions.spec.ts --workers=2
+      - run: npm run test:ui -- tests/ui/brand-release.spec.ts tests/ui/desktop-windows.spec.ts tests/ui/teleprompter.spec.ts tests/ui/hud-layout.spec.ts tests/ui/export-error-report.spec.ts tests/ui/timeline-presentation.spec.ts tests/ui/recording-setup.spec.ts tests/ui/recording-preferences-ready.spec.ts tests/ui/recording-trial-finalization.spec.ts tests/ui/camera-permissions.spec.ts tests/ui/audio-mix-fallback.spec.ts --workers=2
 
   package:
     if: inputs.candidate_run_id == ''

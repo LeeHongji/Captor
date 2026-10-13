@@ -54,7 +54,9 @@
 			"upToDateTitle": "Captor {{version}} is up-to-date.",
 			"availableTitle": "Captor {{version}} is beschikbaar.",
 			"availableGenericTitle": "Er is een update beschikbaar."
-		}
+		},
+		"loadingPreferences": "Opname-instellingen laden…",
+		"preferencesUnavailable": "Opname-instellingen niet beschikbaar. Controleer de opnameomgeving of open de bediening opnieuw."
 	},
 	"sourceSelector": {
 		"loadingSources": "Bronnen laden...",

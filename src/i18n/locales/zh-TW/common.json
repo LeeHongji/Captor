@@ -103,7 +103,7 @@
 		"startTrial": "Open test recording controls",
 		"trialRecording": "Test recording in progress",
 		"trialPreview": "Test recording preview",
-		"trialVerified": "Recording saved and video decoded successfully",
+		"trialVerified": "錄製已保存，畫面檢查通過。請播放片段，檢查所選聲音是否正常。",
 		"viewProjects": "View projects first",
 		"back": "Back",
 		"continue": "Continue",
@@ -124,6 +124,13 @@
 		"mouseVerified": "Mouse interaction received",
 		"mouseFailed": "Mouse events are unavailable. Check Accessibility, remove old Captor entries, then quit and reopen the app.",
 		"changeFolder": "Change recordings folder",
-		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds."
+		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds.",
+		"audioSummary": "本次錄製保存的聲音",
+		"audioRecorded": "錄入影片",
+		"audioNotRecorded": "不錄入影片",
+		"voiceFollowOnly": "麥克風目前只用於語音跟讀，不保存人聲。開啟「錄製麥克風聲音」後，人聲才會錄入影片。",
+		"silentRecording": "已選擇靜音錄製：影片不會保存麥克風人聲或系統聲音。",
+		"trialMicrophoneInstructions": "試錄時說一句話，再播放片段，確認能聽到自己的人聲。",
+		"trialSystemAudioInstructions": "試錄時在電腦上播放音樂或影片，再確認片段中能聽到電腦聲音。"
 	}
 }

@@ -54,7 +54,9 @@
 			"upToDateTitle": "Captor {{version}} 已是最新版本。",
 			"availableTitle": "Captor {{version}} 已推出新版本。",
 			"availableGenericTitle": "有可用更新。"
-		}
+		},
+		"loadingPreferences": "正在載入錄製設定…",
+		"preferencesUnavailable": "錄製設定無法使用。請檢查錄製環境或重新開啟控制列。"
 	},
 	"sourceSelector": {
 		"loadingSources": "正在載入來源...",

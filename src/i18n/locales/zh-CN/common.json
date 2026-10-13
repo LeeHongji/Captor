@@ -103,7 +103,7 @@
 		"startTrial": "打开试录控制栏",
 		"trialRecording": "正在试录",
 		"trialPreview": "试录视频预览",
-		"trialVerified": "录制已保存，视频播放检查通过",
+		"trialVerified": "录制已保存，画面检查通过。请播放片段，检查所选声音是否正常。",
 		"viewProjects": "先查看工程",
 		"back": "上一步",
 		"continue": "继续",
@@ -124,6 +124,13 @@
 		"mouseVerified": "已收到鼠标交互",
 		"mouseFailed": "暂时无法收到鼠标事件。请检查辅助功能授权，移除旧 Captor 条目，完全退出并重新打开应用。",
 		"changeFolder": "更改录制目录",
-		"mouseTimeout": "没有收到鼠标点击。请重新开始测试，并在十秒内用鼠标或触控板点击测试框。"
+		"mouseTimeout": "没有收到鼠标点击。请重新开始测试，并在十秒内用鼠标或触控板点击测试框。",
+		"audioSummary": "本次录制保存的声音",
+		"audioRecorded": "录入视频",
+		"audioNotRecorded": "不录入视频",
+		"voiceFollowOnly": "麦克风目前只用于语音跟读，不保存人声。开启“录制麦克风声音”后，人声才会录入视频。",
+		"silentRecording": "已选择静音录制：视频不会保存麦克风人声或系统声音。",
+		"trialMicrophoneInstructions": "试录时说一句话，再播放片段，确认能听到自己的人声。",
+		"trialSystemAudioInstructions": "试录时在电脑上播放音乐或视频，再确认片段中能听到电脑声音。"
 	}
 }

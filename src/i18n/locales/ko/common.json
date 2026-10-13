@@ -103,7 +103,7 @@
 		"startTrial": "Open test recording controls",
 		"trialRecording": "Test recording in progress",
 		"trialPreview": "Test recording preview",
-		"trialVerified": "Recording saved and video decoded successfully",
+		"trialVerified": "녹화가 저장되고 영상이 확인되었습니다. 영상을 재생하여 선택한 소리를 확인하세요.",
 		"viewProjects": "View projects first",
 		"back": "Back",
 		"continue": "Continue",
@@ -124,6 +124,13 @@
 		"mouseVerified": "Mouse interaction received",
 		"mouseFailed": "Mouse events are unavailable. Check Accessibility, remove old Captor entries, then quit and reopen the app.",
 		"changeFolder": "Change recordings folder",
-		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds."
+		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds.",
+		"audioSummary": "이번 녹화에 저장되는 소리",
+		"audioRecorded": "녹음됨",
+		"audioNotRecorded": "녹음되지 않음",
+		"voiceFollowOnly": "음성 따라읽기는 마이크를 사용하지만 목소리를 저장하지 않습니다. 영상에 목소리를 넣으려면 마이크 오디오 녹음을 켜세요.",
+		"silentRecording": "무음 녹화가 선택되었습니다. 마이크와 시스템 소리가 저장되지 않습니다.",
+		"trialMicrophoneInstructions": "시험 녹화 중 한 문장을 말한 뒤 영상을 재생하여 목소리가 들리는지 확인하세요.",
+		"trialSystemAudioInstructions": "시험 녹화 중 컴퓨터에서 음악이나 영상을 재생한 뒤 녹화에 그 소리가 포함되었는지 확인하세요."
 	}
 }

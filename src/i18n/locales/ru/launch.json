@@ -54,7 +54,9 @@
 			"upToDateTitle": "У вас актуальная версия Captor {{version}}.",
 			"availableTitle": "Доступна новая версия Captor {{version}}.",
 			"availableGenericTitle": "Доступно обновление."
-		}
+		},
+		"loadingPreferences": "Загрузка настроек записи…",
+		"preferencesUnavailable": "Настройки записи недоступны. Проверьте среду записи или снова откройте панель управления."
 	},
 	"sourceSelector": {
 		"loadingSources": "Загрузка источников...",

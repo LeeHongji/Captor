@@ -54,7 +54,9 @@
 			"upToDateTitle": "Captor {{version}} está atualizado.",
 			"availableTitle": "Captor {{version}} está disponível.",
 			"availableGenericTitle": "Há uma atualização disponível."
-		}
+		},
+		"loadingPreferences": "Carregando configurações de gravação…",
+		"preferencesUnavailable": "Configurações indisponíveis. Verifique o ambiente de gravação ou reabra os controles."
 	},
 	"sourceSelector": {
 		"loadingSources": "Carregando fontes...",

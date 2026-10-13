@@ -5,7 +5,6 @@ import { CheckCircleIcon, ArrowRight, ArrowLeft } from "@/components/ui/icons";
 import { useI18n } from "@/contexts/I18nContext";
 import { SUPPORTED_LOCALES, type AppLocale } from "@/i18n/config";
 import {
-	normalizeSetupChoices,
 	requiredSetupPermissions,
 	setupIsReady,
 	type SetupSnapshot,
@@ -16,6 +15,12 @@ import { SetupMediaTest } from "./SetupMediaTest";
 import { resolveMediaResourceUrl } from "@/lib/exporter/localMediaSource";
 
 const STEPS = ["welcome", "permissions", "devices", "voice", "trial"] as const;
+const FIRST_SETUP_CHOICES: SetupChoices = {
+	microphone: true,
+	camera: false,
+	systemAudio: false,
+	voiceFollow: true,
+};
 const LANGUAGE_LABELS: Record<AppLocale, string> = {
 	en: "English",
 	es: "Español",
@@ -35,12 +40,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 	const { t, locale, setLocale } = useI18n();
 	const [snapshot, setSnapshot] = useState<SetupSnapshot | null>(null);
 	const [step, setStep] = useState(0);
-	const [choices, setChoices] = useState<SetupChoices>({
-		microphone: false,
-		camera: false,
-		systemAudio: false,
-		voiceFollow: true,
-	});
+	const [choices, setChoices] = useState<SetupChoices>(FIRST_SETUP_CHOICES);
 	const [microphoneDevice, setMicrophoneDevice] = useState({ id: "", label: "" });
 	const [cameraDevice, setCameraDevice] = useState({ id: "", label: "" });
 	const persistQueue = useRef(Promise.resolve());
@@ -85,10 +85,22 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 					label: prefs.webcamDeviceLabel ?? "",
 				});
 				if (!current) return;
+				const initialChoices = initial.record
+					? {
+							...initial.record.choices,
+							microphone: prefs.microphoneEnabled,
+							systemAudio: prefs.systemAudioEnabled,
+							camera: prefs.webcamEnabled,
+						}
+					: FIRST_SETUP_CHOICES;
 				initialComplete.current =
-					initial.record?.completed === true && !initial.identityChanged;
+					initial.record?.completed === true &&
+					!initial.identityChanged &&
+					initial.record.choices.microphone === initialChoices.microphone &&
+					initial.record.choices.systemAudio === initialChoices.systemAudio &&
+					initial.record.choices.camera === initialChoices.camera;
 				initialConfiguration.current = JSON.stringify({
-					choices: initial.record?.choices ?? normalizeSetupChoices(undefined),
+					choices: initialChoices,
 					microphoneDevice: {
 						id: prefs.microphoneDeviceId ?? "",
 						label: prefs.microphoneDeviceLabel ?? "",
@@ -100,7 +112,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 				});
 				setHydrated(true);
 				if (initial.record) {
-					setChoices(initial.record.choices);
+					setChoices(initialChoices);
 					setStep(
 						initial.identityChanged || initial.record.completed
 							? 1
@@ -180,6 +192,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 			const operation = persistQueue.current
 				.catch(() => undefined)
 				.then(async () => {
+					if (!hydrated) throw Error("environment-not-ready");
 					if (completed) assertResult(await window.recordingSetupAPI!.canFinish());
 					assertResult(
 						await window.electronAPI.setRecordingPreferences({
@@ -205,7 +218,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 			persistQueue.current = operation;
 			return operation;
 		},
-		[choices, microphoneDevice, cameraDevice],
+		[choices, microphoneDevice, cameraDevice, hydrated],
 	);
 	const configuration = JSON.stringify({ choices, microphoneDevice, cameraDevice });
 	if (hydrated && configuration !== initialConfiguration.current)
@@ -397,6 +410,35 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 					: old.microphone,
 		}));
 	};
+	const recordingAudioStatus = (
+		<div
+			role="status"
+			aria-label={t("setup.audioSummary")}
+			className="space-y-3 rounded-xl border border-separator bg-secondary p-4 text-sm"
+		>
+			<p className="font-semibold">{t("setup.audioSummary")}</p>
+			<dl className="space-y-2">
+				<div className="flex justify-between gap-4">
+					<dt>{t("setup.recordMicrophone")}</dt>
+					<dd className={choices.microphone ? "text-success" : "text-muted-foreground"}>
+						{t(choices.microphone ? "setup.audioRecorded" : "setup.audioNotRecorded")}
+					</dd>
+				</div>
+				<div className="flex justify-between gap-4">
+					<dt>{t("setup.recordSystemAudio")}</dt>
+					<dd className={choices.systemAudio ? "text-success" : "text-muted-foreground"}>
+						{t(choices.systemAudio ? "setup.audioRecorded" : "setup.audioNotRecorded")}
+					</dd>
+				</div>
+			</dl>
+			{!choices.microphone && choices.voiceFollow && (
+				<p className="text-muted-foreground">{t("setup.voiceFollowOnly")}</p>
+			)}
+			{!choices.microphone && !choices.systemAudio && (
+				<p className="font-medium text-foreground">{t("setup.silentRecording")}</p>
+			)}
+		</div>
+	);
 	return (
 		<section
 			aria-label={t("setup.title")}
@@ -621,6 +663,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 							)}
 							{step === 2 && (
 								<div className="space-y-6">
+									{recordingAudioStatus}
 									<div className="flex items-center justify-between gap-4 border-b border-separator pb-4 text-sm">
 										<span>{t("setup.recordMicrophone")}</span>
 										<Switch
@@ -825,6 +868,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 							)}
 							{step === 4 && (
 								<div className="space-y-5">
+									{recordingAudioStatus}
 									<div className="divide-y divide-separator">
 										{requiredSetupPermissions(choices).map((permission) => (
 											<div
@@ -859,6 +903,16 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 									<p className="text-sm leading-relaxed text-muted-foreground">
 										{t("setup.trialInstructions")}
 									</p>
+									{choices.microphone && (
+										<p className="text-sm leading-relaxed text-muted-foreground">
+											{t("setup.trialMicrophoneInstructions")}
+										</p>
+									)}
+									{choices.systemAudio && (
+										<p className="text-sm leading-relaxed text-muted-foreground">
+											{t("setup.trialSystemAudioInstructions")}
+										</p>
+									)}
 									<Button
 										variant="secondary"
 										disabled={
@@ -929,7 +983,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 							}
 							onClick={() =>
 								void run(async () => {
-									if (!unchangedCompleted) await save(step);
+									if (hydrated && !unchangedCompleted) await save(step);
 									onClose();
 								})
 							}
@@ -951,7 +1005,7 @@ export function RecordingSetupWizard({ onClose }: { onClose: () => void }) {
 								</Button>
 							)}
 							<Button
-								disabled={busy || !canContinue}
+								disabled={busy || !hydrated || !canContinue}
 								onClick={
 									step === 4
 										? () =>

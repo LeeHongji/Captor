@@ -132,6 +132,7 @@ type DesktopCaptureMediaDevices = {
 type UseScreenRecorderReturn = {
 	recording: boolean;
 	starting: boolean;
+	recordingPreferencesStatus: "loading" | "ready" | "failed";
 	paused: boolean;
 	finalizing: boolean;
 	acquireListeningMicrophone: () => Promise<{ stream: MediaStream; release: () => void }>;
@@ -386,6 +387,11 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	const [countdownActive, setCountdownActive] = useState(false);
 	const [isMacOS, setIsMacOS] = useState(false);
 	const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
+	const preferencesGeneration = useRef(0);
+	const [preferencesState, setPreferencesState] = useState<{
+		status: "loading" | "ready" | "failed";
+		generation: number;
+	}>({ status: "loading", generation: 0 });
 	// The stop handler is retained in a ref; read the configuration captured for this take.
 	const captureMicrophoneExpected = useRef(false);
 	const [microphoneDeviceId, setMicrophoneDeviceId] = useState<string | undefined>(undefined);
@@ -1509,20 +1515,26 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 	useEffect(() => {
 		let current = true;
-		let generation = 0;
 		const load = async () => {
-			const token = ++generation;
-			const result = await window.electronAPI.getRecordingPreferences();
-			if (!result.success) return;
-			const devices = await navigator.mediaDevices.enumerateDevices();
-			if (!current || token !== generation) return;
+			const token = ++preferencesGeneration.current;
+			setPreferencesState({ status: "loading", generation: token });
 			try {
+				const result = await window.electronAPI.getRecordingPreferences();
+				if (!result.success) throw Error("Recording preferences unavailable.");
+				const devices = await navigator.mediaDevices.enumerateDevices();
+				if (!current || token !== preferencesGeneration.current) return;
 				setMicrophoneDeviceId(resolveSetupDevice(devices, "audioinput", result.microphoneEnabled ? result.microphoneDeviceId : undefined, result.microphoneEnabled ? result.microphoneDeviceLabel : undefined));
 				setWebcamDeviceId(resolveSetupDevice(devices, "videoinput", result.webcamEnabled ? result.webcamDeviceId : undefined, result.webcamEnabled ? result.webcamDeviceLabel : undefined));
-			} catch { await window.recordingSetupAPI?.open(); return; }
-			setMicrophoneEnabled(result.microphoneEnabled);
-			setSystemAudioEnabled(result.systemAudioEnabled);
-			setWebcamEnabled(result.webcamEnabled);
+				setMicrophoneEnabled(result.microphoneEnabled);
+				setSystemAudioEnabled(result.systemAudioEnabled);
+				setWebcamEnabled(result.webcamEnabled);
+				setPreferencesState({ status: "ready", generation: token });
+			} catch (error) {
+				if (!current || token !== preferencesGeneration.current) return;
+				setPreferencesState({ status: "failed", generation: token });
+				console.warn("Could not load recording preferences:", error);
+				await window.recordingSetupAPI?.open().catch(() => undefined);
+			}
 		};
 		void load();
 		const unsubscribe = window.electronAPI.onRecordingPreferencesChanged?.(() => void load());
@@ -2420,12 +2432,14 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			return;
 		}
 
+		if (preferencesState.status !== "ready" || preferencesState.generation !== preferencesGeneration.current) return;
 		startRecording();
 	};
 
 	return {
 		recording,
 		starting,
+		recordingPreferencesStatus: preferencesState.status,
 		paused,
 		finalizing,
 		acquireListeningMicrophone,

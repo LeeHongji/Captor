@@ -103,7 +103,7 @@
 		"startTrial": "Open test recording controls",
 		"trialRecording": "Test recording in progress",
 		"trialPreview": "Test recording preview",
-		"trialVerified": "Recording saved and video decoded successfully",
+		"trialVerified": "Grabación guardada y vídeo comprobado. Reproduce el clip para comprobar el audio seleccionado.",
 		"viewProjects": "View projects first",
 		"back": "Back",
 		"continue": "Continue",
@@ -124,6 +124,13 @@
 		"mouseVerified": "Mouse interaction received",
 		"mouseFailed": "Mouse events are unavailable. Check Accessibility, remove old Captor entries, then quit and reopen the app.",
 		"changeFolder": "Change recordings folder",
-		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds."
+		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds.",
+		"audioSummary": "Audio guardado en esta grabación",
+		"audioRecorded": "Se graba",
+		"audioNotRecorded": "No se graba",
+		"voiceFollowOnly": "El seguimiento de voz escucha el micrófono, pero no guarda tu voz. Activa Grabar audio del micrófono para incluirla en el vídeo.",
+		"silentRecording": "Grabación silenciosa seleccionada: no se guardará audio del micrófono ni del sistema.",
+		"trialMicrophoneInstructions": "Di una frase durante la prueba y reproduce el clip para comprobar que se oye tu voz.",
+		"trialSystemAudioInstructions": "Reproduce música o un vídeo en el ordenador durante la prueba y comprueba que su sonido aparece en el clip."
 	}
 }

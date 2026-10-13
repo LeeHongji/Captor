@@ -54,7 +54,9 @@
 			"upToDateTitle": "Captor {{version}}은(는) 최신 버전입니다.",
 			"availableTitle": "Captor {{version}}을(를) 사용할 수 있습니다.",
 			"availableGenericTitle": "업데이트를 사용할 수 있습니다."
-		}
+		},
+		"loadingPreferences": "녹화 설정을 불러오는 중…",
+		"preferencesUnavailable": "녹화 설정을 사용할 수 없습니다. 녹화 환경을 확인하거나 제어창을 다시 여세요."
 	},
 	"sourceSelector": {
 		"loadingSources": "소스를 불러오는 중...",

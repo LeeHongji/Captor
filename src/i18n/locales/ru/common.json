@@ -103,7 +103,7 @@
 		"startTrial": "Open test recording controls",
 		"trialRecording": "Test recording in progress",
 		"trialPreview": "Test recording preview",
-		"trialVerified": "Recording saved and video decoded successfully",
+		"trialVerified": "Запись сохранена, видео проверено. Воспроизведите ролик, чтобы проверить выбранные источники звука.",
 		"viewProjects": "View projects first",
 		"back": "Back",
 		"continue": "Continue",
@@ -124,6 +124,13 @@
 		"mouseVerified": "Mouse interaction received",
 		"mouseFailed": "Mouse events are unavailable. Check Accessibility, remove old Captor entries, then quit and reopen the app.",
 		"changeFolder": "Change recordings folder",
-		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds."
+		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds.",
+		"audioSummary": "Звук, сохраняемый в этой записи",
+		"audioRecorded": "Записывается",
+		"audioNotRecorded": "Не записывается",
+		"voiceFollowOnly": "Отслеживание речи слушает микрофон, но не сохраняет ваш голос. Включите запись звука микрофона, чтобы добавить голос в видео.",
+		"silentRecording": "Выбрана запись без звука: звук микрофона и системы не будет сохранён.",
+		"trialMicrophoneInstructions": "Произнесите фразу во время теста, затем воспроизведите ролик и проверьте, слышен ли ваш голос.",
+		"trialSystemAudioInstructions": "Включите музыку или видео на компьютере во время теста, затем проверьте звук в записанном ролике."
 	}
 }

@@ -59,6 +59,7 @@ function LaunchWindowContent() {
 	const {
 		recording,
 		starting,
+		recordingPreferencesStatus,
 		paused,
 		finalizing,
 		countdownActive,
@@ -403,8 +404,9 @@ function LaunchWindowContent() {
 								requestOpen("sources");
 							}
 				}
-				disabled={countdownActive}
-				title={t("recording.record")}
+				disabled={countdownActive || recordingPreferencesStatus !== "ready"}
+				aria-label={t("recording.record")}
+				title={recordingPreferencesStatus === "ready" ? t("recording.record") : t(recordingPreferencesStatus === "loading" ? "recording.loadingPreferences" : "recording.preferencesUnavailable")}
 			>
 				<div className={styles.recDot} />
 			</Button>

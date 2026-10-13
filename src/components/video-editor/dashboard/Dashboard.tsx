@@ -9,6 +9,7 @@ import { useDashboardModel } from "./useDashboardModel";
 import { useEffect } from "react";
 import { RecordingPreparation } from "@/components/teleprompter/RecordingPreparation";
 export function Dashboard(props: DashboardProps) {
+	useEffect(() => window.recordingSetupAPI?.onOpen(() => props.onOpenChange(false)), [props.onOpenChange]);
 	const model = useDashboardModel(props);
 	const view = { ...props, ...model };
 	useEffect(() => {

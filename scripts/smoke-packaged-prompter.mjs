@@ -36,7 +36,9 @@ try {
 	assert.equal(environment.runtime.storage, true);
 	assert.equal(environment.platform, "darwin");
 	assert.equal((await initialWindow.evaluate(() => window.recordingSetupAPI.repair("screen", false))).code, "cancelled");
+	await expect(initialWindow.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();
 	await initialWindow.getByRole("button", { name: "View projects first", exact: true }).click();
+	await expect.poll(() => initialWindow.evaluate(() => window.electronAPI.getRecordingPreferences())).toMatchObject({ microphoneEnabled: true, systemAudioEnabled: false });
 	assert.equal(dialogs, 0, "Setup must not produce startup permission alerts");
 	await expect
 		.poll(() => app.windows().some((page) => page.url().includes("windowType=editor")), {
@@ -80,6 +82,7 @@ try {
 			arch,
 			packagedEditor: editor.url(),
 			setupEntry: true,
+			firstSetupRecordsMicrophone: true,
 			unsolicitedDialogs: dialogs,
 			directEntry: true,
 			scriptEntry: true,

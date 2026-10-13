@@ -103,7 +103,7 @@
 		"startTrial": "Open test recording controls",
 		"trialRecording": "Test recording in progress",
 		"trialPreview": "Test recording preview",
-		"trialVerified": "Recording saved and video decoded successfully",
+		"trialVerified": "Recording saved and video checked. Play the clip to check the selected audio sources.",
 		"viewProjects": "View projects first",
 		"back": "Back",
 		"continue": "Continue",
@@ -124,6 +124,13 @@
 		"mouseVerified": "Mouse interaction received",
 		"mouseFailed": "Mouse events are unavailable. Check Accessibility, remove old Captor entries, then quit and reopen the app.",
 		"changeFolder": "Change recordings folder",
-		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds."
+		"mouseTimeout": "No mouse click was received. Start the test again and click the test box with your mouse or trackpad within ten seconds.",
+		"audioSummary": "Audio saved in this recording",
+		"audioRecorded": "Recorded",
+		"audioNotRecorded": "Not recorded",
+		"voiceFollowOnly": "Voice following listens to the microphone but does not save your voice. Turn on Record microphone audio to include it in the video.",
+		"silentRecording": "Silent recording selected: no microphone or system audio will be saved.",
+		"trialMicrophoneInstructions": "Say a sentence during the test, then play the clip and check that you can hear your voice.",
+		"trialSystemAudioInstructions": "Play music or a video on your computer during the test, then check that its sound is present in the clip."
 	}
 }

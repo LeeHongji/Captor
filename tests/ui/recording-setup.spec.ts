@@ -1,6 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
 import { installDesktopBridge, installDesktopBridgeOverrides } from "./bridge";
-async function setup(page: Page, options = { denied: false, failed: false, theme: "light" }) {
+async function setup(
+	page: Page,
+	options: {
+		denied: boolean;
+		failed: boolean;
+		theme: string;
+		fresh?: boolean;
+		voiceFollow?: boolean;
+		delayPreferences?: boolean;
+		savedMicrophone?: boolean;
+		currentMicrophone?: boolean;
+		completed?: boolean;
+	} = { denied: false, failed: false, theme: "light" },
+) {
 	await installDesktopBridge(page);
 	await installDesktopBridgeOverrides(
 		page,
@@ -9,28 +22,30 @@ async function setup(page: Page, options = { denied: false, failed: false, theme
 			localStorage.setItem("captor.theme", options.theme);
 			window.electronAPI.getCurrentVideoPath = async () => ({ success: false });
 			const choices = {
-				microphone: false,
+				microphone: options.savedMicrophone === true,
 				camera: false,
 				systemAudio: false,
-				voiceFollow: false,
+				voiceFollow: options.voiceFollow === true,
 			};
 			let state: import("../../src/types/recordingSetup").SetupSnapshot = {
 				platform: "darwin",
-				appVersion: "0.0.4",
+				appVersion: "0.0.5",
 				installation: "applications",
 				fingerprint: "candidate",
 				identityChanged: false,
-				record: {
-					version: 1,
-					step: 0,
-					completed: false,
-					fingerprint: "candidate",
-					choices,
-				},
+				record: options.fresh
+					? null
+					: {
+							version: 1,
+							step: 0,
+							completed: options.completed === true,
+							fingerprint: "candidate",
+							choices,
+						},
 				permissions: {
 					screen: options.denied ? "denied" : "granted",
 					accessibility: "granted",
-					microphone: "denied",
+					microphone: options.fresh || options.voiceFollow ? "granted" : "denied",
 					camera: "denied",
 				},
 				runtime: { supported: true, binaries: true, storage: true },
@@ -39,6 +54,41 @@ async function setup(page: Page, options = { denied: false, failed: false, theme
 				verificationFailures: options.failed ? ["screen"] : [],
 			};
 			let trial: { phase: string; path?: string; duration?: number } | null = null;
+			let preferences = {
+				success: true,
+				microphoneEnabled: options.currentMicrophone ?? choices.microphone,
+				systemAudioEnabled: choices.systemAudio,
+				webcamEnabled: choices.camera,
+			};
+			window.electronAPI.getRecordingPreferences = async () => ({ ...preferences });
+			window.electronAPI.setRecordingPreferences = async (prefs) => {
+				preferences = { ...preferences, ...prefs };
+				document.documentElement.dataset.savedMicrophone = String(prefs.microphoneEnabled);
+				document.documentElement.dataset.savedSystemAudio = String(
+					prefs.systemAudioEnabled,
+				);
+				document.documentElement.dataset.savedMicrophoneDevice =
+					prefs.microphoneDeviceId ?? "";
+				return { success: true };
+			};
+			if (options.delayPreferences) {
+				let release!: () => void;
+				const pending = new Promise<void>((resolve) => {
+					release = resolve;
+				});
+				window.addEventListener("test-release-preferences", () => release());
+				window.electronAPI.getRecordingPreferences = async () => {
+					await pending;
+					return {
+						success: true,
+						microphoneEnabled: false,
+						systemAudioEnabled: false,
+						webcamEnabled: false,
+						microphoneDeviceId: "saved-mic",
+						microphoneDeviceLabel: "Saved microphone",
+					};
+				};
+			}
 			const opened = new Set<() => void>();
 			window.recordingSetupAPI = {
 				snapshot: async () => structuredClone(state),
@@ -136,9 +186,113 @@ async function setup(page: Page, options = { denied: false, failed: false, theme
 		options,
 	);
 	await page.goto("/?windowType=editor");
+	await expect(page.getByRole("region", { name: "Recording environment" })).toBeVisible();
+}
+test("rechecking the environment preserves the current microphone-off choice", async ({
+	page,
+}) => {
+	await setup(page, {
+		denied: false,
+		failed: false,
+		theme: "light",
+		savedMicrophone: true,
+		currentMicrophone: false,
+	});
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await page.getByRole("button", { name: "Test mouse interaction", exact: true }).click();
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await expect(
+		page.getByRole("switch", { name: "Record microphone audio", exact: true }),
+	).not.toBeChecked();
+	await expect(page.locator("html")).toHaveAttribute("data-saved-microphone", "false");
+});
+test("leaving a completed setup synchronizes a newer microphone-off choice", async ({ page }) => {
+	await setup(page, {
+		denied: false,
+		failed: false,
+		theme: "light",
+		savedMicrophone: true,
+		currentMicrophone: false,
+		completed: true,
+	});
+	await expect(page.getByRole("button", { name: "Back", exact: true })).toBeEnabled();
+	await page.getByRole("button", { name: "View projects first", exact: true }).click();
+	await expect(page.locator("html")).toHaveAttribute("data-saved-microphone", "false");
+	expect(await page.evaluate(() => window.recordingSetupAPI!.snapshot())).toMatchObject({
+		record: { choices: { microphone: false } },
+	});
+});
+test("leaving during slow initialization does not overwrite a saved microphone-off choice", async ({
+	page,
+}) => {
+	await setup(page, { denied: false, failed: false, theme: "light", delayPreferences: true });
+	await page.getByRole("button", { name: "View projects first", exact: true }).click();
 	await expect(
 		page.getByRole("heading", { name: "Prepare your recording environment" }),
-	).toBeVisible();
+	).not.toBeVisible();
+	await expect(page.getByRole("dialog", { name: "Projects dashboard" })).toBeVisible();
+	await expect(page.locator("html")).not.toHaveAttribute("data-saved-microphone");
+	expect(
+		(await page.evaluate(() => window.recordingSetupAPI!.snapshot())).record?.choices
+			.microphone,
+	).toBe(false);
+	await page.evaluate(() => window.dispatchEvent(new Event("test-release-preferences")));
+	await page.evaluate(() => window.recordingSetupAPI!.open());
+	await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();
+	await page.getByRole("button", { name: "View projects first", exact: true }).click();
+	await expect(page.locator("html")).toHaveAttribute("data-saved-microphone", "false");
+	await expect(page.locator("html")).toHaveAttribute("data-saved-microphone-device", "saved-mic");
+});
+test("continue waits for saved preferences even when the environment snapshot is ready", async ({
+	page,
+}) => {
+	await setup(page, { denied: false, failed: false, theme: "light", delayPreferences: true });
+	await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeDisabled();
+	await page.evaluate(() => window.dispatchEvent(new Event("test-release-preferences")));
+	await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();
+	await page.getByRole("button", { name: "Continue", exact: true }).click();
+	await expect(page.locator("html")).toHaveAttribute("data-saved-microphone", "false");
+});
+for (const theme of ["light", "dark"]) {
+	test(`fresh ${theme} setup records the microphone by default and preserves an explicit silent choice`, async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 800, height: 600 });
+		await setup(page, { denied: false, failed: false, theme, fresh: true });
+		await page.getByRole("button", { name: "Continue", exact: true }).click();
+		await page.getByRole("button", { name: "Test mouse interaction", exact: true }).click();
+		await page.getByRole("button", { name: "Continue", exact: true }).click();
+		const microphone = page.getByRole("switch", {
+			name: "Record microphone audio",
+			exact: true,
+		});
+		await expect(microphone).toBeChecked();
+		await expect(page.locator("html")).toHaveAttribute("data-saved-microphone", "true");
+		const status = page.getByRole("status", { name: "Audio saved in this recording" });
+		await expect(status.getByText("Recorded", { exact: true })).toBeVisible();
+		await microphone.press("Space");
+		await expect(microphone).not.toBeChecked();
+		await expect(status.getByText("Not recorded", { exact: true })).toHaveCount(2);
+		await expect(page.getByText(/Voice following listens to the microphone/)).toBeVisible();
+		await expect(page.getByText(/Silent recording selected/)).toBeVisible();
+		await expect(page.locator("html")).toHaveAttribute("data-saved-microphone", "false");
+		await status.scrollIntoViewIfNeeded();
+		await expect(
+			page.getByRole("button", { name: "View projects first", exact: true }),
+		).toBeInViewport();
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		).toBe(true);
+		await page.screenshot({
+			path: `test-results/setup-audio-${theme}.png`,
+			animations: "disabled",
+		});
+		await page.getByRole("button", { name: "View projects first", exact: true }).click();
+		await page.evaluate(() => window.recordingSetupAPI!.open());
+		await expect(
+			page.getByRole("switch", { name: "Record microphone audio", exact: true }),
+		).not.toBeChecked();
+	});
 }
 test("first setup checks silently, explicit requests and recovery stay inside the wizard", async ({
 	page,
@@ -191,6 +345,8 @@ test("all explicitly disabled features still complete the full trial route", asy
 	await page.evaluate(() =>
 		(window as unknown as { testSetupTrialComplete(): void }).testSetupTrialComplete(),
 	);
+	await expect(page.getByRole("status", { name: "Audio saved in this recording" })).toBeVisible();
+	await expect(page.getByText(/Silent recording selected/)).toBeVisible();
 	await page.getByRole("button", { name: "Check again", exact: true }).count();
 	await expect(page.getByRole("button", { name: "Finish setup", exact: true })).toBeEnabled({
 		timeout: 10000,

@@ -4,6 +4,10 @@ On macOS, the first launch opens a five-step recording setup. Check the installa
 
 Choose the microphone and camera you intend to use. Microphone recording and voice following are separate choices; voice following needs a microphone even when microphone audio is not saved into the recording. The local voice model supports Chinese and English, requires about 200 MB, and needs no account. Device and voice tests do not save audio. You can explicitly disable camera, microphone recording or voice following and use manual prompting.
 
+First-time setup enables microphone recording by default. Saved choices, including an explicitly disabled microphone, are preserved. The device and trial steps show which audio sources will actually be saved; microphone permission and successful voice following alone do not enable recorded voice. When both microphone and system audio are disabled, the wizard clearly identifies the recording as silent. During the trial, speak if microphone recording is enabled and play computer audio if system audio is enabled, then listen to the preview before finishing.
+
+The recording controls wait until saved settings and devices have loaded before enabling Record. A settings refresh also blocks new starts until it is applied; stopping an active recording remains available. Returning to setup uses the current microphone, system audio and camera settings, including choices changed in the recording controls. While setup is still loading, View projects first exits without overwriting settings.
+
 The test recording is a real saved clip in the recordings folder. Select a screen or window in the HUD and press Record; it stops after five seconds. Play it in the setup preview before finishing. Existing projects can be opened through View projects first without completing recording setup.
 
 ## An enabled permission still fails
